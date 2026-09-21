@@ -1,0 +1,26 @@
+[Unit]
+Description=DISAG Java kiosk
+Wants=plymouth-quit.service
+After=systemd-user-sessions.service plymouth-quit.service
+Conflicts=getty@tty1.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStartPre=/usr/local/bin/disag-settings
+ExecStartPre=/usr/local/bin/disag-wait-display
+ExecStart=/usr/bin/xinit /usr/local/bin/disag-session -- /usr/bin/Xorg :0 vt1 -keeptty -nolisten tcp -nocursor -configdir /run/disag-xorg.conf.d
+Restart=always
+RestartSec=3
+KillMode=control-group
+TimeoutStopSec=10
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+
+[Install]
+WantedBy=multi-user.target

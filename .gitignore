@@ -1,0 +1,19 @@
+# Proprietäre DISAG-Anwendung (lokal aus dem DISAG-Kundenbereich beziehen)
+/DISAG-VIZ/
+
+# Heruntergeladene Raspberry-Pi-OS-Basisimages
+/cache/
+
+# Gebaute Images, Prüfergebnisse und Logs
+/output/
+
+# Lokale Build- und Editorreste
+__pycache__/
+*.py[cod]
+*.log
+*.tmp
+*.swp
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

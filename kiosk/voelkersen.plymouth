@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Schuetzenverein Voelkersen 1905 e.V.
+Description=Vereinslogo beim Start
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/voelkersen
+ScriptFile=/usr/share/plymouth/themes/voelkersen/voelkersen.script
