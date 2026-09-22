@@ -10,7 +10,7 @@ test -s "$ROOT/cache/base.img.xz" || { echo 'cache/base.img.xz fehlt.' >&2; exit
 test -s "$ROOT/cache/base.sha256" || { echo 'cache/base.sha256 fehlt.' >&2; exit 1; }
 test -s "$ROOT/DISAG-VIZ/classes/BeamerView.class" || { echo 'DISAG-VIZ enthält keine vollständige VIZ-Anwendung.' >&2; exit 1; }
 test -s "$ROOT/images/SVV_Logo.png" || { echo 'images/SVV_Logo.png fehlt.' >&2; exit 1; }
-test -s "$ROOT/kiosk/boot-splash.png" || { echo 'Logo zuerst mit tools/prepare-logo.ps1 vorbereiten.' >&2; exit 1; }
+test -s "$ROOT/kiosk/boot-splash.png" || { echo 'Logo zuerst mit tools/prepare-logo.sh oder tools/prepare-logo.ps1 vorbereiten.' >&2; exit 1; }
 
 for command in losetup mount chroot parted resize2fs e2fsck zerofree xz Xvfb java javac; do
   command -v "$command" >/dev/null || { echo "Benötigtes Programm fehlt: $command" >&2; exit 1; }
@@ -24,8 +24,16 @@ if [[ -e "$WORK" ]]; then
 fi
 mkdir -p "$WORK" "$ROOT/output"
 
+case $(uname -m) in
+  aarch64|arm64)
+    QEMU_AARCH64_STATIC=''
+    echo 'Nativer ARM64-Host erkannt; QEMU-Registrierung wird übersprungen.'
+    ;;
+  *)
+    QEMU_AARCH64_STATIC=$(python3 "$ROOT/kiosk/register-qemu.py")
+    ;;
+esac
 export QEMU_AARCH64_STATIC
-QEMU_AARCH64_STATIC=$(python3 "$ROOT/kiosk/register-qemu.py")
 
 cleanup_on_error() {
   status=$?

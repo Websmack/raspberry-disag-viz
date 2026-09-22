@@ -22,35 +22,40 @@ Der Fernseher wird über KMS/DRM erkannt. Beim Pi 5 wird die DRM-Karte mit HDMI-
 
 ## Projektdateien
 
-| Pfad | Zweck |
-|---|---|
-| `build-image.sh` | Einziger Einstiegspunkt für einen vollständigen Build. |
-| `DISAG-VIZ/` | Lokal abgelegte DISAG-Anwendung. Wird nicht in Git aufgenommen. |
-| `cache/` | Raspberry-Pi-OS-Basisimage und dessen SHA256-Datei. Wird nicht in Git aufgenommen. |
-| `images/SVV_Logo.png` | Originales Vereinslogo. |
-| `tools/prepare-logo.ps1` | Erstellt daraus die zentrierte 1920×1080-Bootgrafik. |
-| `kiosk/install.sh` | Installiert Xorg, Java, Plymouth, Netzwerk und systemd-Dienste ins Image. |
-| `kiosk/session.sh` | Startet Openbox und die DISAG-Anwendung und überwacht beide. |
-| `kiosk/disag-kiosk.service` | systemd-Dienst für Autostart und Neustart. |
-| `kiosk/wait-display.sh` | Findet die zum HDMI-Anschluss gehörende DRM-Karte. |
-| `kiosk/display.py` | Wählt den aktiven HDMI-Ausgang und dessen bevorzugte Auflösung. |
-| `kiosk/settings.py` | Übernimmt Server-IP, Port und VIZ-Namen von der Bootpartition. |
-| `kiosk/compact-java.sh` | Erzeugt mit `jdeps` und `jlink` eine kleine Java-Laufzeit. |
-| `kiosk/minimize.sh` | Entfernt Entwicklungs-, Cloud- und nicht benötigte Pakete. |
-| `kiosk/finish-logo.sh` | Baut Logo und Plymouth-Theme in beide Initramfs-Varianten ein. |
-| `kiosk/smoke-test.sh` | Prüft ARM-Java-Start und Neustart nach einem simulierten Absturz. |
-| `kiosk/finalize.sh` | Verkleinert das Dateisystem und erzeugt `.img.xz` samt SHA256. |
-| `output/` | Lokale Buildausgabe und späteres Release-Asset. Bleibt außerhalb von Git. |
+| Pfad | Im Git | Zweck |
+|---|:---:|---|
+| `build-image.sh` | ✅ | Einziger Einstiegspunkt für einen vollständigen Build. |
+| `DISAG-VIZ/` | ❌ | Lokal abgelegte DISAG-Anwendung. Wird nicht in Git aufgenommen. |
+| `cache/` | ❌ | Raspberry-Pi-OS-Basisimage und dessen SHA256-Datei. Wird nicht in Git aufgenommen. |
+| `images/SVV_Logo.png` | ✅ | Originales Vereinslogo. |
+| `tools/prepare-logo.sh` | ✅ | Erstellt daraus unter Linux/WSL die zentrierte 1920×1080-Bootgrafik. |
+| `tools/prepare-logo.ps1` | ✅ | PowerShell-Variante der Logo-Vorbereitung. |
+| `kiosk/install.sh` | ✅ | Installiert Xorg, Java, Plymouth, Netzwerk und systemd-Dienste ins Image. |
+| `kiosk/session.sh` | ✅ | Startet Openbox und die DISAG-Anwendung und überwacht beide. |
+| `kiosk/disag-kiosk.service` | ✅ | systemd-Dienst für Autostart und Neustart. |
+| `kiosk/wait-display.sh` | ✅ | Findet die zum HDMI-Anschluss gehörende DRM-Karte. |
+| `kiosk/display.py` | ✅ | Wählt den aktiven HDMI-Ausgang und dessen bevorzugte Auflösung. |
+| `kiosk/settings.py` | ✅ | Übernimmt Server-IP, Port und VIZ-Namen von der Bootpartition. |
+| `kiosk/compact-java.sh` | ✅ | Erzeugt mit `jdeps` und `jlink` eine kleine Java-Laufzeit. |
+| `kiosk/minimize.sh` | ✅ | Entfernt Entwicklungs-, Cloud- und nicht benötigte Pakete. |
+| `kiosk/finish-logo.sh` | ✅ | Baut Logo und Plymouth-Theme in beide Initramfs-Varianten ein. |
+| `kiosk/smoke-test.sh` | ✅ | Prüft ARM-Java-Start und Neustart nach einem simulierten Absturz. |
+| `kiosk/finalize.sh` | ✅ | Verkleinert das Dateisystem und erzeugt `.img.xz` samt SHA256. |
+| `output/` | ❌ | Lokale Buildausgabe und späteres Release-Asset. Bleibt außerhalb von Git. |
+
+✅ = im Repository vorhanden, ❌ = wird lokal bereitgestellt oder erzeugt und nicht in Git aufgenommen.
 
 Die übrigen Dateien in `kiosk/` sind Konfigurationen oder kleine Prüfwerkzeuge, die von diesen Schritten verwendet werden.
 
 ## Voraussetzungen
 
-Ich baue das Image unter Linux oder WSL mit Root-Rechten. Benötigt werden:
+Der eigentliche Build muss in einer Linux-Umgebung mit Root-Rechten laufen, weil die Skripte Loop-Geräte, `mount`, `chroot` und `binfmt_misc` verwenden. Unter Windows dient dafür WSL2, unter macOS eine Linux-VM. Ein nativer Build direkt in Windows, PowerShell oder macOS wird nicht unterstützt.
+
+In der Linux-Umgebung werden benötigt:
 
 - `qemu-aarch64-static` ab Version 8
 - `e2fsprogs` ab Version 1.47.2
-- `parted`, `zerofree`, `xz`, Python 3
+- `parted`, `zerofree`, `xz`, `ffmpeg`, `curl`, Python 3
 - OpenJDK 17 oder neuer, Xvfb und X11-Werkzeuge für den Starttest
 - mindestens 12 GB freier Speicher
 
@@ -59,14 +64,33 @@ Beispiel für Debian 13:
 ```bash
 sudo apt update
 sudo apt install qemu-user-static binfmt-support e2fsprogs parted zerofree xz-utils \
-  python3 openjdk-17-jdk-headless xvfb x11-utils
+  python3 ffmpeg curl openjdk-17-jdk-headless xvfb x11-utils
 ```
 
-## Image bauen
+## Basisimage herunterladen
+
+Der Build benötigt das aktuelle **Raspberry Pi OS Lite ARM64** und die dazugehörige offizielle SHA256-Datei. Beide Dateien werden unter festen Namen im lokalen, von Git ausgeschlossenen Ordner `cache/` abgelegt:
+
+```bash
+mkdir -p cache
+curl -fL https://downloads.raspberrypi.com/raspios_lite_arm64_latest \
+  -o cache/base.img.xz
+curl -fL https://downloads.raspberrypi.com/raspios_lite_arm64_latest.sha256 \
+  -o cache/base.sha256
+```
+
+Danach lässt sich der Download manuell prüfen. `build-image.sh` führt dieselbe Prüfung vor jedem Build automatisch aus:
+
+```bash
+expected=$(awk '{print $1}' cache/base.sha256)
+echo "$expected  cache/base.img.xz" | sha256sum -c -
+```
+
+## Build vorbereiten
 
 1. Repository auschecken und in das Projekt wechseln.
 2. Im DISAG-Kundenbereich die lizenzierte VIZ-Software herunterladen und den **Inhalt** des ZIP-Archivs nach `DISAG-VIZ/` entpacken. Danach muss `DISAG-VIZ/classes/BeamerView.class` existieren.
-3. Das aktuelle **Raspberry Pi OS Lite ARM64** von [Raspberry Pi](https://www.raspberrypi.com/software/operating-systems/) herunterladen. Das Image als `cache/base.img.xz` und die zugehörige SHA256-Datei als `cache/base.sha256` speichern.
+3. Das aktuelle **Raspberry Pi OS Lite ARM64** wie unter [Basisimage herunterladen](#basisimage-herunterladen) beschrieben in `cache/` ablegen.
 4. Bei Bedarf `kiosk/disag.txt` bearbeiten:
 
    ```ini
@@ -75,27 +99,126 @@ sudo apt install qemu-user-static binfmt-support e2fsprogs parted zerofree xz-ut
    vizname=SV-Völkersen-VIZ
    ```
 
-5. Bootlogo vorbereiten:
+5. Bootlogo vorbereiten. Unter Linux beziehungsweise WSL das Bash-Skript verwenden:
+
+   ```bash
+   ./tools/prepare-logo.sh
+   ```
+
+   Unter Windows steht alternativ das PowerShell-Skript zur Verfügung:
 
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\tools\prepare-logo.ps1
    ```
 
-6. Build in Linux beziehungsweise WSL starten:
+6. Skripte ausführbar machen:
 
    ```bash
    chmod +x build-image.sh kiosk/*.sh
-   sudo ./build-image.sh
    ```
 
-7. Ergebnis prüfen:
+Danach den Build mit der Anleitung für das verwendete Betriebssystem starten.
 
-   ```bash
-   cd output
-   sha256sum -c voelkersen-disag-pi3-pi5.img.xz.sha256
-   ```
+## Image unter Linux erstellen
+
+Unter Debian 13 oder einer vergleichbaren Linux-Distribution die unter [Voraussetzungen](#voraussetzungen) genannten Pakete installieren, das Repository vorbereiten und im Projektverzeichnis ausführen:
+
+```bash
+sudo ./build-image.sh
+```
+
+## Image unter Windows erstellen
+
+Der Build läuft unter Windows in **WSL2**. Zuerst PowerShell als Administrator öffnen und Debian installieren:
+
+```powershell
+wsl --install -d Debian
+```
+
+Windows neu starten, falls dazu aufgefordert wird. Anschließend Debian öffnen und alle weiteren Befehle innerhalb von WSL ausführen:
+
+```bash
+sudo apt update
+sudo apt install qemu-user-static binfmt-support e2fsprogs parted zerofree xz-utils \
+  python3 ffmpeg openjdk-17-jdk-headless xvfb x11-utils git curl
+git clone https://github.com/Websmack/raspberry-disag-viz.git
+cd raspberry-disag-viz
+```
+
+Das Projekt sollte im Linux-Dateisystem von WSL, zum Beispiel unter `~/raspberry-disag-viz`, und nicht unter `/mnt/c/` liegen. Danach die Schritte unter [Build vorbereiten](#build-vorbereiten) ausführen und den Build starten:
+
+```bash
+sudo ./build-image.sh
+```
+
+Das fertige Image kann bei Bedarf nach Windows kopiert werden:
+
+```bash
+cp output/voelkersen-disag-pi3-pi5.img.xz /mnt/c/Users/DEIN-BENUTZERNAME/Downloads/
+```
+
+## Image unter macOS erstellen
+
+Unter macOS wird eine Linux-VM benötigt, beispielsweise Debian 13 in UTM, VMware Fusion oder Parallels. Der VM mindestens 4 CPU-Kerne, 8 GB RAM und 25 GB freien Plattenplatz zuweisen. Das gilt sowohl für Intel-Macs als auch für Apple-Silicon-Macs. Auf einem ARM64-Linux-Gastsystem läuft das Raspberry-Pi-System nativ; auf anderen Architekturen verwendet der Build QEMU.
+
+In der VM ein Terminal öffnen und ausführen:
+
+```bash
+sudo apt update
+sudo apt install qemu-user-static binfmt-support e2fsprogs parted zerofree xz-utils \
+  python3 ffmpeg openjdk-17-jdk-headless xvfb x11-utils git curl
+git clone https://github.com/Websmack/raspberry-disag-viz.git
+cd raspberry-disag-viz
+```
+
+Danach die Schritte unter [Build vorbereiten](#build-vorbereiten) ausführen und innerhalb der VM bauen:
+
+```bash
+sudo ./build-image.sh
+```
+
+Das fertige `.img.xz` anschließend über einen freigegebenen VM-Ordner, `scp` oder einen USB-Datenträger nach macOS kopieren. Docker Desktop wird für diesen Build nicht empfohlen, weil der Build privilegierten Zugriff auf Loop-Geräte, Mounts und `binfmt_misc` benötigt.
+
+## Ergebnis prüfen
+
+Nach einem erfolgreichen Build die erzeugte Prüfsumme kontrollieren:
+
+```bash
+cd output
+sha256sum -c voelkersen-disag-pi3-pi5.img.xz.sha256
+```
 
 Der Build entfernt einen alten Arbeitsstand unter `/var/tmp/disag-kiosk-build`, prüft aber vorher, dass davon nichts mehr eingehängt ist. Das fertige Image liegt ausschließlich unter `output/voelkersen-disag-pi3-pi5.img.xz`.
+
+## Eingeschränkter QEMU-Test
+
+Mit QEMU lassen sich Kernel, Initramfs, SD-Partitionen, ext4 und der systemd-Start als Raspberry Pi 3B testen. Unter macOS werden dafür `brew install qemu xz mtools`, unter Debian `sudo apt install qemu-system-arm xz-utils mtools` benötigt. Zuerst Image und Bootdateien vorbereiten:
+
+```bash
+mkdir -p qemu-rpi3
+xz -dc output/voelkersen-disag-pi3-pi5.img.xz > qemu-rpi3/sdcard.img
+mcopy -i qemu-rpi3/sdcard.img@@8388608 ::kernel8.img qemu-rpi3/kernel8.img
+mcopy -i qemu-rpi3/sdcard.img@@8388608 ::bcm2710-rpi-3-b.dtb qemu-rpi3/bcm2710-rpi-3-b.dtb
+mcopy -i qemu-rpi3/sdcard.img@@8388608 ::initramfs8 qemu-rpi3/initramfs8
+truncate -s 4G qemu-rpi3/sdcard.img
+```
+
+Danach den seriellen Boot-Test starten:
+
+```bash
+qemu-system-aarch64 \
+  -M raspi3b \
+  -kernel qemu-rpi3/kernel8.img \
+  -dtb qemu-rpi3/bcm2710-rpi-3-b.dtb \
+  -initrd qemu-rpi3/initramfs8 \
+  -drive file=qemu-rpi3/sdcard.img,format=raw,if=sd \
+  -append "rw root=/dev/mmcblk0p2 rootfstype=ext4 rootwait earlycon=pl011,mmio32,0x3f201000 console=ttyAMA1,115200 watchdog_disarm=0 loglevel=7 systemd.show_status=true plymouth.enable=0 systemd.mask=disag-kiosk.service" \
+  -display none \
+  -monitor none \
+  -serial stdio
+```
+
+Ein erfolgreicher Test erreicht `Welcome to Debian GNU/Linux 13 (trixie)!`. QEMU mit `Strg`+`C` beenden. Der Kiosk-Dienst wird absichtlich maskiert, da QEMU die VideoCore-/KMS-/HDMI-Hardware nicht vollständig emuliert. Bootlogo, Xorg, HDMI und die DISAG-Oberfläche müssen deshalb auf einem echten Raspberry Pi 3 geprüft werden.
 
 ## Auf den Raspberry Pi übertragen
 
@@ -143,7 +266,20 @@ Der Build erwartet die übliche Raspberry-Pi-OS-Aufteilung: FAT-Bootpartition 1 
 ## Eigenes Vereinslogo
 
 1. Eigenes Logo als PNG unter `images/SVV_Logo.png` ablegen.
-2. `tools/prepare-logo.ps1` ausführen.
+2. Bootgrafik erzeugen:
+
+   Linux beziehungsweise WSL:
+
+   ```bash
+   ./tools/prepare-logo.sh
+   ```
+
+   Windows PowerShell:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\tools\prepare-logo.ps1
+   ```
+
 3. Die erzeugte Datei `kiosk/boot-splash.png` kontrollieren.
 4. Image neu bauen.
 
