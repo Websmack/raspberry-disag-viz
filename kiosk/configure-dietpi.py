@@ -12,7 +12,9 @@ values = {
     'AUTO_SETUP_NET_ETHERNET_ENABLED': '1',
     'AUTO_SETUP_NET_WIFI_ENABLED': '0',
     'AUTO_SETUP_NET_USESTATIC': '0',
-    'AUTO_SETUP_BOOT_WAIT_FOR_NETWORK': '1',
+    # The kiosk starts without a server connection and reconnects itself. Do
+    # not let missing DHCP, Internet or Wi-Fi block DietPi firstboot forever.
+    'AUTO_SETUP_BOOT_WAIT_FOR_NETWORK': '0',
     'AUTO_SETUP_HEADLESS': '1',
     'AUTO_SETUP_SSH_SERVER_INDEX': '-2',
     'AUTO_SETUP_AUTOSTART_TARGET_INDEX': '0',

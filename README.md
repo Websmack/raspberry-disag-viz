@@ -244,8 +244,10 @@ DietPi wird beim ersten Start automatisch und ohne Dialoge eingerichtet:
 - kein SSH-Server,
 - keine DietPi-Telemetrie.
 
-Der Kiosk-Dienst wartet auf DietPi-Firstboot und die Netzwerkverfügbarkeit.
-Danach startet die Visualisierung auf `tty1`.
+Der Kiosk-Dienst wartet nur auf den Start des NetworkManagers, aber nicht auf
+DHCP, Internet oder das Ende von DietPi-Firstboot. Die Visualisierung startet
+daher auch ohne Netzwerk auf `tty1` und verbindet sich selbständig mit dem
+DISAG-Server, sobald dieser erreichbar ist.
 
 Die Meldung `Setting maximal mount count to -1` stammt von `tune2fs` und ist
 für sich kein Fehler. Aktuelle Builds legen das ext4-Journal bereits beim
