@@ -3,12 +3,13 @@ set -Eeuo pipefail
 export PATH=/opt/disag-e2fsprogs/sbin:$PATH
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 WORK=/var/tmp/disag-kiosk-build
+BASE_IMAGE=${BASE_IMAGE:?BASE_IMAGE ist nicht gesetzt}
+BASE_SHA256=${BASE_SHA256:?BASE_SHA256 ist nicht gesetzt}
 mkdir -p "$WORK/root"
-cd "$ROOT/cache"
-expected=$(awk '{print $1}' base.sha256)
-echo "$expected  base.img.xz" | sha256sum -c -
+expected=$(awk 'NR==1{print $1}' "$BASE_SHA256")
+echo "$expected  $BASE_IMAGE" | sha256sum -c -
 if [[ ! -e "$WORK/kiosk.img" ]]; then
-  xz -dc base.img.xz > "$WORK/kiosk.img"
+  xz -dc "$BASE_IMAGE" > "$WORK/kiosk.img"
 fi
 test -z "$(losetup -j "$WORK/kiosk.img")" || { echo 'Image already attached; refusing concurrent build'; exit 1; }
 truncate -s 5G "$WORK/kiosk.img"

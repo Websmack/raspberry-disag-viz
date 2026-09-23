@@ -4,6 +4,7 @@ IMAGE=/var/tmp/disag-kiosk-build/root
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 for script in "$ROOT"/kiosk/*.sh; do bash -n "$script"; done
 python3 "$ROOT/kiosk/test_display.py"
+python3 "$ROOT/kiosk/test_network.py"
 bash "$ROOT/kiosk/test_wait_display.sh"
 chroot "$IMAGE" dpkg-query -W '-f=${Installed-Size}\t${binary:Package}\n' | sort -nr | head -25
 find "$IMAGE/usr/share/initramfs-tools" -type f -iname '*resize*' -o -iname '*raspi*'
@@ -14,7 +15,10 @@ cat "$IMAGE/boot/firmware/cmdline.txt"
 cat "$IMAGE/boot/firmware/config.txt"
 chroot "$IMAGE" dpkg --audit
 chroot "$IMAGE" systemctl is-enabled disag-kiosk.service
+chroot "$IMAGE" systemctl is-enabled disag-network.service
 chroot "$IMAGE" systemctl is-enabled NetworkManager.service
+test -s "$IMAGE/boot/firmware/network.txt"
+test -s "$IMAGE/etc/NetworkManager/system-connections/kiosk-lan.nmconnection"
 test -x "$IMAGE/usr/bin/xrandr"
 test -x "$IMAGE/usr/bin/xhost"
 test -x "$IMAGE/usr/bin/xset"
@@ -35,4 +39,6 @@ chroot "$IMAGE" passwd -S svvdiag | grep -q ' P '
 test ! -e "$IMAGE/etc/sudoers.d/svvdiag"
 grep -q 'console=tty1' "$IMAGE/boot/firmware/cmdline.txt"
 grep -q 'systemd.show_status=false' "$IMAGE/boot/firmware/cmdline.txt"
+grep -q '^auto_initramfs=1$' "$IMAGE/boot/firmware/config.txt"
+find "$IMAGE/boot/firmware" -maxdepth 1 -type f \( -name 'initramfs8' -o -name 'initramfs_2712' \) -size +0c | grep -q .
 df -h "$IMAGE" "$IMAGE/boot/firmware"

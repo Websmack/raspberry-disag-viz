@@ -3,9 +3,9 @@
 from pathlib import Path
 import re
 
-source = Path('/boot/firmware/disag.txt')
+source = next((path for path in (Path('/boot/firmware/disag.txt'), Path('/boot/disag.txt')) if path.exists()), None)
 target = Path('/opt/DISAG-VIZ/config/ressources.txt')
-if source.exists():
+if source is not None:
     values = {}
     for line in source.read_text(encoding='utf-8-sig').splitlines():
         if not line.strip() or line.lstrip().startswith('#'):

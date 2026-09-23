@@ -1,7 +1,7 @@
 # Proprietäre DISAG-Anwendung (lokal aus dem DISAG-Kundenbereich beziehen)
 /DISAG-VIZ/
 
-# Heruntergeladene Raspberry-Pi-OS-Basisimages
+# Heruntergeladene DietPi-Basisimages
 /cache/
 
 # Gebaute Images, Prüfergebnisse und Logs

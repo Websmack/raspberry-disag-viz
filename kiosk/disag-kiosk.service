@@ -1,7 +1,7 @@
 [Unit]
 Description=DISAG Java kiosk
-Wants=plymouth-quit.service
-After=systemd-user-sessions.service plymouth-quit.service
+Wants=plymouth-quit.service network-online.target
+After=systemd-user-sessions.service plymouth-quit.service network-online.target dietpi-firstboot.service
 Conflicts=getty@tty1.service
 StartLimitIntervalSec=0
 

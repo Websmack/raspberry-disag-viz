@@ -1,0 +1,18 @@
+# Netzwerk des Kiosk-Systems. yes/no sowie dhcp/static verwenden.
+# LAN und WLAN dürfen gleichzeitig aktiv sein. Bei DHCP bleiben die
+# jeweiligen address/gateway/dns-Werte leer.
+
+lan_enabled=yes
+lan_method=dhcp
+lan_address=
+lan_gateway=
+lan_dns=
+
+wifi_enabled=no
+wifi_ssid=Mein-WLAN
+wifi_password=BITTE-AENDERN
+wifi_country=DE
+wifi_method=dhcp
+wifi_address=
+wifi_gateway=
+wifi_dns=

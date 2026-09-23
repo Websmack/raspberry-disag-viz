@@ -4,6 +4,7 @@ export PATH=/opt/disag-e2fsprogs/sbin:$PATH
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 WORK=/var/tmp/disag-kiosk-build
 IMAGE="$WORK/root"
+OUTPUT_BASENAME=${OUTPUT_BASENAME:-voelkersen-disag-dietpi-rpi}
 test -s "$ROOT/output/smoke-result.txt"
 test -s "$IMAGE/usr/share/plymouth/themes/voelkersen/logo.png"
 test -s "$IMAGE/usr/share/plymouth/themes/voelkersen/boot-splash.png"
@@ -67,8 +68,8 @@ with p.open('r+b') as f:
     f.truncate((end+1)*512)
 PY
 parted -s "$WORK/kiosk.img" unit B print > "$ROOT/output/partitions.txt"
-xz -T2 -9e -c "$WORK/kiosk.img" > "$ROOT/output/voelkersen-disag-pi3-pi5.img.xz"
+xz -T2 -9e -c "$WORK/kiosk.img" > "$ROOT/output/$OUTPUT_BASENAME.img.xz"
 cd "$ROOT/output"
-xz -t voelkersen-disag-pi3-pi5.img.xz
-sha256sum voelkersen-disag-pi3-pi5.img.xz > voelkersen-disag-pi3-pi5.img.xz.sha256
-ls -lh voelkersen-disag-pi3-pi5.img.xz
+xz -t "$OUTPUT_BASENAME.img.xz"
+sha256sum "$OUTPUT_BASENAME.img.xz" > "$OUTPUT_BASENAME.img.xz.sha256"
+ls -lh "$OUTPUT_BASENAME.img.xz"

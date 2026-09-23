@@ -1,303 +1,383 @@
-# DISAG VIZ Raspberry-Pi-Kiosk
+# DISAG VIZ DietPi-Kiosk
 
-Ich nutze dieses Projekt, um die DISAG-OpticScore-Visualisierung als kleines Kiosk-Image auf einem Raspberry Pi 3, 4 oder 5 zu betreiben. Das Image startet direkt in die Visualisierung, zeigt beim Booten das Vereinslogo und startet die Anwendung nach einem Absturz neu.
+Dieses Projekt erzeugt ein minimales, direkt startendes Kiosk-Image für die
+DISAG-OpticScore-Visualisierung. Als Basis dienen offizielle
+[**DietPi Trixie ARM64**-Images](https://dietpi.com/#download). Der Builder unterstützt derzeit 42 Profile für Raspberry Pi,
+Orange Pi, ODROID, Radxa/ROCK, NanoPi/NanoPC und Pine64.
+
+Das fertige System:
+
+- startet die DISAG-VIZ automatisch auf dem angeschlossenen HDMI-Bildschirm,
+- verwendet Xorg, Openbox und eine mit `jlink` reduzierte Java-21-Laufzeit,
+- verwendet standardmäßig Ethernet mit DHCP,
+- unterstützt konfigurierbares LAN und WLAN, einzeln oder gleichzeitig,
+- startet die Anwendung nach einem Absturz automatisch neu,
+- zeigt beim Booten ein anpassbares Vereinslogo,
+- hält Protokolle im begrenzten RAM-Journal statt dauerhaft auf der SD-Karte.
 
 Erstellt von **Websmack** für den Schützenverein Völkersen.
 
-## Aufbau
+## Schnellstart
 
-```mermaid
-flowchart LR
-    OSS[DISAG OpticScore Server] -->|LAN / TCP 7934| VIZ
-    VIZ -->|HDMI-Ausgabe| TV[TV oder Beamer]
-    subgraph KIOSK[Raspberry Pi Kiosk]
-        OS[Raspberry Pi OS Lite] --> X[Xorg / KMS]
-        X --> JAVA[reduzierte Java-21-Laufzeit]
-        JAVA --> VIZ[DISAG VIZ]
-        SYSTEMD[systemd] -->|Start und Neustart| X
-    end
+Der eigentliche Image-Build benötigt Linux und Root-Rechte. Download und
+Prüfung des DietPi-Basisimages laufen ohne `sudo`.
+
+```bash
+./build-image.sh --list-targets
+./build-image.sh --download --target raspberry-pi-5
+./tools/prepare-logo.sh
+sudo ./build-image.sh --target raspberry-pi-5
 ```
 
-Der Fernseher wird über KMS/DRM erkannt. Beim Pi 5 wird die DRM-Karte mit HDMI-Anschluss dynamisch ausgewählt, weil sich die Kartennummern ändern können. Netzwerk wird per LAN und DHCP eingerichtet. Die Vorgabe für den DISAG-Server steht in `kiosk/disag.txt`.
+Das Ergebnis liegt anschließend hier:
 
-## Projektdateien
+```text
+output/voelkersen-disag-raspberry-pi-5.img.xz
+output/voelkersen-disag-raspberry-pi-5.img.xz.sha256
+```
 
-| Pfad | Im Git | Zweck |
-|---|:---:|---|
-| `build-image.sh` | ✅ | Einziger Einstiegspunkt für einen vollständigen Build. |
-| `DISAG-VIZ/` | ❌ | Lokal abgelegte DISAG-Anwendung. Wird nicht in Git aufgenommen. |
-| `cache/` | ❌ | Raspberry-Pi-OS-Basisimage und dessen SHA256-Datei. Wird nicht in Git aufgenommen. |
-| `images/SVV_Logo.png` | ✅ | Originales Vereinslogo. |
-| `tools/prepare-logo.sh` | ✅ | Erstellt daraus unter Linux/WSL die zentrierte 1920×1080-Bootgrafik. |
-| `tools/prepare-logo.ps1` | ✅ | PowerShell-Variante der Logo-Vorbereitung. |
-| `kiosk/install.sh` | ✅ | Installiert Xorg, Java, Plymouth, Netzwerk und systemd-Dienste ins Image. |
-| `kiosk/session.sh` | ✅ | Startet Openbox und die DISAG-Anwendung und überwacht beide. |
-| `kiosk/disag-kiosk.service` | ✅ | systemd-Dienst für Autostart und Neustart. |
-| `kiosk/wait-display.sh` | ✅ | Findet die zum HDMI-Anschluss gehörende DRM-Karte. |
-| `kiosk/display.py` | ✅ | Wählt den aktiven HDMI-Ausgang und dessen bevorzugte Auflösung. |
-| `kiosk/settings.py` | ✅ | Übernimmt Server-IP, Port und VIZ-Namen von der Bootpartition. |
-| `kiosk/compact-java.sh` | ✅ | Erzeugt mit `jdeps` und `jlink` eine kleine Java-Laufzeit. |
-| `kiosk/minimize.sh` | ✅ | Entfernt Entwicklungs-, Cloud- und nicht benötigte Pakete. |
-| `kiosk/finish-logo.sh` | ✅ | Baut Logo und Plymouth-Theme in beide Initramfs-Varianten ein. |
-| `kiosk/smoke-test.sh` | ✅ | Prüft ARM-Java-Start und Neustart nach einem simulierten Absturz. |
-| `kiosk/finalize.sh` | ✅ | Verkleinert das Dateisystem und erzeugt `.img.xz` samt SHA256. |
-| `output/` | ❌ | Lokale Buildausgabe und späteres Release-Asset. Bleibt außerhalb von Git. |
+## Unterstützte Plattformen
 
-✅ = im Repository vorhanden, ❌ = wird lokal bereitgestellt oder erzeugt und nicht in Git aufgenommen.
+Die verbindliche Liste wird direkt aus [`platforms.conf`](platforms.conf)
+erzeugt:
 
-Die übrigen Dateien in `kiosk/` sind Konfigurationen oder kleine Prüfwerkzeuge, die von diesen Schritten verwendet werden.
+```bash
+./build-image.sh --list-targets
+```
+
+Enthalten sind:
+
+| Familie | Profile |
+|---|---|
+| Raspberry Pi | 3B+, 4, 5 |
+| Orange Pi | 3, 3B, 3 LTS, 4A, 4 LTS, 4 Pro, 5, 5B, 5 Plus, 5 Max, 5 Pro, 5 Ultra, CM5 |
+| ODROID | C2, C4, N2/N2+, M1, M1S, M2 |
+| Radxa/ROCK | ROCK 3A, Pi 4, 4C+, 4 SE, 5A, 5B, Radxa Zero, ZERO 3 |
+| Pine64 | A64, H64, ROCK64, ROCKPro64, Quartz64 A/B |
+| FriendlyElec | NanoPC-T4/T6, NanoPi M4/M4V2/M5/M6 |
+
+Ein Profil bedeutet, dass ein offizielles DietPi-Image vorhanden und der
+passende Buildpfad implementiert ist. Bootloader, HDMI/KMS, Netzwerk und die
+DISAG-Anwendung müssen trotzdem auf dem jeweiligen echten Board geprüft
+werden. Images verschiedener Boards sind nicht austauschbar.
+
+Der Banana Pi M1 ist nicht enthalten, weil DietPi dafür derzeit kein
+offizielles Downloadimage anbietet.
 
 ## Voraussetzungen
 
-Der eigentliche Build muss in einer Linux-Umgebung mit Root-Rechten laufen, weil die Skripte Loop-Geräte, `mount`, `chroot` und `binfmt_misc` verwenden. Unter Windows dient dafür WSL2, unter macOS eine Linux-VM. Ein nativer Build direkt in Windows, PowerShell oder macOS wird nicht unterstützt.
+Der Build verwendet Loop-Geräte, Mounts, `chroot` und bei nicht nativen
+ARM64-Hosts QEMU. Unterstützt werden:
 
-In der Linux-Umgebung werden benötigt:
+- Debian 13 oder eine vergleichbare Linux-Distribution,
+- WSL2 mit Debian unter Windows,
+- eine Linux-VM unter macOS.
 
-- `qemu-aarch64-static` ab Version 8
-- `e2fsprogs` ab Version 1.47.2
-- `parted`, `zerofree`, `xz`, `ffmpeg`, `curl`, Python 3
-- OpenJDK 17 oder neuer, Xvfb und X11-Werkzeuge für den Starttest
-- mindestens 12 GB freier Speicher
+Ein direkter Build unter Windows, PowerShell oder macOS wird nicht unterstützt.
+Docker Desktop ist wegen der benötigten privilegierten Mount- und
+Loop-Geräte-Zugriffe ebenfalls nicht vorgesehen.
 
-Beispiel für Debian 13:
+Benötigte Pakete unter Debian:
 
 ```bash
 sudo apt update
-sudo apt install qemu-user-static binfmt-support e2fsprogs parted zerofree xz-utils \
-  python3 ffmpeg curl openjdk-17-jdk-headless xvfb x11-utils
+sudo apt install qemu-user-static binfmt-support e2fsprogs parted zerofree \
+  xz-utils python3 ffmpeg curl openjdk-17-jdk-headless xvfb x11-utils git
 ```
 
-## Basisimage herunterladen
+Zusätzlich werden mindestens 12 GB freier Speicher empfohlen.
 
-Der Build benötigt das aktuelle **Raspberry Pi OS Lite ARM64** und die dazugehörige offizielle SHA256-Datei. Beide Dateien werden unter festen Namen im lokalen, von Git ausgeschlossenen Ordner `cache/` abgelegt:
+## Projekt vorbereiten
+
+### 1. DISAG-VIZ bereitstellen
+
+Die lizenzierte Visualisierungssoftware wird nicht mit diesem Repository
+verteilt. Den Inhalt des von DISAG bezogenen ZIP-Archivs nach `DISAG-VIZ/`
+entpacken. Danach muss mindestens diese Datei vorhanden sein:
+
+```text
+DISAG-VIZ/classes/BeamerView.class
+```
+
+### 2. Verbindung konfigurieren
+
+Die Vorgaben für den OpticScore-Server stehen in [`kiosk/disag.txt`](kiosk/disag.txt):
+
+```ini
+serverip=192.168.0.101
+serverport=7934
+vizname=SV-Völkersen-VIZ
+```
+
+Die Datei wird in die Bootpartition übernommen und kann dort später ohne
+erneuten Build angepasst werden.
+
+### 3. Netzwerk konfigurieren
+
+LAN und WLAN werden über [`kiosk/network.txt`](kiosk/network.txt) konfiguriert.
+Beide Schnittstellen können einzeln oder gleichzeitig aktiviert werden. Im
+Auslieferungszustand ist LAN mit DHCP aktiv und WLAN deaktiviert:
+
+```ini
+lan_enabled=yes
+lan_method=dhcp
+lan_address=
+lan_gateway=
+lan_dns=
+
+wifi_enabled=no
+wifi_ssid=Mein-WLAN
+wifi_password=BITTE-AENDERN
+wifi_country=DE
+wifi_method=dhcp
+wifi_address=
+wifi_gateway=
+wifi_dns=
+```
+
+Für eine statische Adresse `method=static` setzen und Adresse inklusive
+CIDR-Präfix, Gateway und mindestens einen DNS-Server eintragen:
+
+```ini
+lan_enabled=yes
+lan_method=static
+lan_address=192.168.10.20/24
+lan_gateway=192.168.10.1
+lan_dns=1.1.1.1,9.9.9.9
+```
+
+Für WLAN mindestens `wifi_enabled=yes`, SSID, Passwort und den
+zweistelligen ISO-Ländercode setzen. Ein leeres `wifi_password` konfiguriert
+ein offenes WLAN. Das WLAN-Passwort steht im Klartext auf der Bootpartition;
+der Zugriff auf die Speicherkarte ist daher entsprechend abzusichern.
+
+Die Datei wird als `network.txt` in die Bootpartition kopiert. Änderungen
+werden bei jedem Start vor NetworkManager eingelesen. LAN erhält standardmäßig
+die niedrigere Route-Metrik und wird bei gleichzeitig aktiven Verbindungen
+bevorzugt; WLAN bleibt als zweite Verbindung aktiv.
+
+### 4. Bootlogo erzeugen
+
+Das Quelllogo liegt unter `images/SVV_Logo.png`. Unter Linux oder WSL:
 
 ```bash
-mkdir -p cache
-curl -fL https://downloads.raspberrypi.com/raspios_lite_arm64_latest \
-  -o cache/base.img.xz
-curl -fL https://downloads.raspberrypi.com/raspios_lite_arm64_latest.sha256 \
-  -o cache/base.sha256
+./tools/prepare-logo.sh
 ```
 
-Danach lässt sich der Download manuell prüfen. `build-image.sh` führt dieselbe Prüfung vor jedem Build automatisch aus:
-
-```bash
-expected=$(awk '{print $1}' cache/base.sha256)
-echo "$expected  cache/base.img.xz" | sha256sum -c -
-```
-
-## Build vorbereiten
-
-1. Repository auschecken und in das Projekt wechseln.
-2. Im DISAG-Kundenbereich die lizenzierte VIZ-Software herunterladen und den **Inhalt** des ZIP-Archivs nach `DISAG-VIZ/` entpacken. Danach muss `DISAG-VIZ/classes/BeamerView.class` existieren.
-3. Das aktuelle **Raspberry Pi OS Lite ARM64** wie unter [Basisimage herunterladen](#basisimage-herunterladen) beschrieben in `cache/` ablegen.
-4. Bei Bedarf `kiosk/disag.txt` bearbeiten:
-
-   ```ini
-   serverip=192.168.0.101
-   serverport=7934
-   vizname=SV-Völkersen-VIZ
-   ```
-
-5. Bootlogo vorbereiten. Unter Linux beziehungsweise WSL das Bash-Skript verwenden:
-
-   ```bash
-   ./tools/prepare-logo.sh
-   ```
-
-   Unter Windows steht alternativ das PowerShell-Skript zur Verfügung:
-
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\tools\prepare-logo.ps1
-   ```
-
-6. Skripte ausführbar machen:
-
-   ```bash
-   chmod +x build-image.sh kiosk/*.sh
-   ```
-
-Danach den Build mit der Anleitung für das verwendete Betriebssystem starten.
-
-## Image unter Linux erstellen
-
-Unter Debian 13 oder einer vergleichbaren Linux-Distribution die unter [Voraussetzungen](#voraussetzungen) genannten Pakete installieren, das Repository vorbereiten und im Projektverzeichnis ausführen:
-
-```bash
-sudo ./build-image.sh
-```
-
-## Image unter Windows erstellen
-
-Der Build läuft unter Windows in **WSL2**. Zuerst PowerShell als Administrator öffnen und Debian installieren:
+Unter Windows PowerShell:
 
 ```powershell
-wsl --install -d Debian
+powershell -ExecutionPolicy Bypass -File .\tools\prepare-logo.ps1
 ```
 
-Windows neu starten, falls dazu aufgefordert wird. Anschließend Debian öffnen und alle weiteren Befehle innerhalb von WSL ausführen:
+Dabei wird `kiosk/boot-splash.png` als zentrierte 1920×1080-Bootgrafik
+erzeugt.
+
+### 5. Skripte ausführbar machen
 
 ```bash
-sudo apt update
-sudo apt install qemu-user-static binfmt-support e2fsprogs parted zerofree xz-utils \
-  python3 ffmpeg openjdk-17-jdk-headless xvfb x11-utils git curl
-git clone https://github.com/Websmack/raspberry-disag-viz.git
-cd raspberry-disag-viz
+chmod +x build-image.sh build-image-raspberrypi.sh build-image-dietpi-sbc.sh \
+  kiosk/*.sh sbc/*.sh tools/*.sh
 ```
 
-Das Projekt sollte im Linux-Dateisystem von WSL, zum Beispiel unter `~/raspberry-disag-viz`, und nicht unter `/mnt/c/` liegen. Danach die Schritte unter [Build vorbereiten](#build-vorbereiten) ausführen und den Build starten:
+## Image erstellen
+
+Zuerst das offizielle DietPi-Image samt SHA256-Datei herunterladen:
 
 ```bash
-sudo ./build-image.sh
+./build-image.sh --download --target orange-pi-5
 ```
 
-Das fertige Image kann bei Bedarf nach Windows kopiert werden:
+Der Download wird unter `cache/` gespeichert und unmittelbar geprüft. Danach
+den Build mit demselben Ziel starten:
 
 ```bash
-cp output/voelkersen-disag-pi3-pi5.img.xz /mnt/c/Users/DEIN-BENUTZERNAME/Downloads/
+sudo ./build-image.sh --target orange-pi-5
 ```
 
-## Image unter macOS erstellen
+Kurzformen wie `rpi5`, `opi5`, `c4` oder `rock5b` werden ebenfalls
+akzeptiert. Die kanonischen Namen aus `--list-targets` sind für Skripte und
+Dokumentation vorzuziehen.
 
-Unter macOS wird eine Linux-VM benötigt, beispielsweise Debian 13 in UTM, VMware Fusion oder Parallels. Der VM mindestens 4 CPU-Kerne, 8 GB RAM und 25 GB freien Plattenplatz zuweisen. Das gilt sowohl für Intel-Macs als auch für Apple-Silicon-Macs. Auf einem ARM64-Linux-Gastsystem läuft das Raspberry-Pi-System nativ; auf anderen Architekturen verwendet der Build QEMU.
+Der Build:
 
-In der VM ein Terminal öffnen und ausführen:
+1. prüft die SHA256-Summe des DietPi-Basisimages,
+2. vergrößert dessen Arbeitskopie,
+3. installiert Xorg, Openbox, Plymouth, NetworkManager und Java 21,
+4. erzeugt eine reduzierte Java-Laufzeit,
+5. führt einen GUI- und Neustart-Smoke-Test unter Xvfb aus,
+6. entfernt Buildwerkzeuge, Paketlisten und unnötige Dateien,
+7. verkleinert das Dateisystem,
+8. erzeugt ein komprimiertes Image und dessen Prüfsumme unter `output/`.
 
-```bash
-sudo apt update
-sudo apt install qemu-user-static binfmt-support e2fsprogs parted zerofree xz-utils \
-  python3 ffmpeg openjdk-17-jdk-headless xvfb x11-utils git curl
-git clone https://github.com/Websmack/raspberry-disag-viz.git
-cd raspberry-disag-viz
-```
+Die gewählte Plattform wird im Image unter `/etc/disag-target` hinterlegt.
 
-Danach die Schritte unter [Build vorbereiten](#build-vorbereiten) ausführen und innerhalb der VM bauen:
-
-```bash
-sudo ./build-image.sh
-```
-
-Das fertige `.img.xz` anschließend über einen freigegebenen VM-Ordner, `scp` oder einen USB-Datenträger nach macOS kopieren. Docker Desktop wird für diesen Build nicht empfohlen, weil der Build privilegierten Zugriff auf Loop-Geräte, Mounts und `binfmt_misc` benötigt.
-
-## Ergebnis prüfen
-
-Nach einem erfolgreichen Build die erzeugte Prüfsumme kontrollieren:
+## Prüfsumme kontrollieren
 
 ```bash
 cd output
-sha256sum -c voelkersen-disag-pi3-pi5.img.xz.sha256
+sha256sum -c voelkersen-disag-orange-pi-5.img.xz.sha256
 ```
 
-Der Build entfernt einen alten Arbeitsstand unter `/var/tmp/disag-kiosk-build`, prüft aber vorher, dass davon nichts mehr eingehängt ist. Das fertige Image liegt ausschließlich unter `output/voelkersen-disag-pi3-pi5.img.xz`.
+## Image schreiben
 
-## Eingeschränkter QEMU-Test
+Das erzeugte `.img.xz` kann ohne vorheriges Entpacken beispielsweise mit
+Raspberry Pi Imager oder balenaEtcher auf eine microSD-Karte geschrieben
+werden.
 
-Mit QEMU lassen sich Kernel, Initramfs, SD-Partitionen, ext4 und der systemd-Start als Raspberry Pi 3B testen. Unter macOS werden dafür `brew install qemu xz mtools`, unter Debian `sudo apt install qemu-system-arm xz-utils mtools` benötigt. Zuerst Image und Bootdateien vorbereiten:
+1. Eigenes Image auswählen.
+2. `output/voelkersen-disag-ZIEL.img.xz` auswählen.
+3. Passende microSD-Karte auswählen und schreiben.
+4. Karte, Ethernet und HDMI am Zielboard anschließen.
+5. Board starten und die automatische DietPi-Ersteinrichtung abwarten.
 
-```bash
-mkdir -p qemu-rpi3
-xz -dc output/voelkersen-disag-pi3-pi5.img.xz > qemu-rpi3/sdcard.img
-mcopy -i qemu-rpi3/sdcard.img@@8388608 ::kernel8.img qemu-rpi3/kernel8.img
-mcopy -i qemu-rpi3/sdcard.img@@8388608 ::bcm2710-rpi-3-b.dtb qemu-rpi3/bcm2710-rpi-3-b.dtb
-mcopy -i qemu-rpi3/sdcard.img@@8388608 ::initramfs8 qemu-rpi3/initramfs8
-truncate -s 4G qemu-rpi3/sdcard.img
-```
+Beim Schreiben wird der bisherige Inhalt der Speicherkarte gelöscht. Das Image
+darf nur für das im Dateinamen angegebene Board verwendet werden.
 
-Danach den seriellen Boot-Test starten:
+## Erster Start und Diagnose
 
-```bash
-qemu-system-aarch64 \
-  -M raspi3b \
-  -kernel qemu-rpi3/kernel8.img \
-  -dtb qemu-rpi3/bcm2710-rpi-3-b.dtb \
-  -initrd qemu-rpi3/initramfs8 \
-  -drive file=qemu-rpi3/sdcard.img,format=raw,if=sd \
-  -append "rw root=/dev/mmcblk0p2 rootfstype=ext4 rootwait earlycon=pl011,mmio32,0x3f201000 console=ttyAMA1,115200 watchdog_disarm=0 loglevel=7 systemd.show_status=true plymouth.enable=0 systemd.mask=disag-kiosk.service" \
-  -display none \
-  -monitor none \
-  -serial stdio
-```
+DietPi wird beim ersten Start automatisch und ohne Dialoge eingerichtet:
 
-Ein erfolgreicher Test erreicht `Welcome to Debian GNU/Linux 13 (trixie)!`. QEMU mit `Strg`+`C` beenden. Der Kiosk-Dienst wird absichtlich maskiert, da QEMU die VideoCore-/KMS-/HDMI-Hardware nicht vollständig emuliert. Bootlogo, Xorg, HDMI und die DISAG-Oberfläche müssen deshalb auf einem echten Raspberry Pi 3 geprüft werden.
+- LAN und WLAN entsprechend `network.txt`,
+- Zeitzone `Europe/Berlin`,
+- Hostname `disag-viz`,
+- kein SSH-Server,
+- keine DietPi-Telemetrie.
 
-## Auf den Raspberry Pi übertragen
+Der Kiosk-Dienst wartet auf DietPi-Firstboot und die Netzwerkverfügbarkeit.
+Danach startet die Visualisierung auf `tty1`.
 
-1. [Raspberry Pi Imager](https://www.raspberrypi.com/software/) öffnen.
-2. Unter „Betriebssystem wählen“ ein eigenes Image auswählen.
-3. `output/voelkersen-disag-pi3-pi5.img.xz` auswählen; Entpacken ist nicht nötig.
-4. microSD-Karte wählen und schreiben. Dabei wird ihr bisheriger Inhalt gelöscht.
-5. Keine zusätzlichen Benutzer- oder WLAN-Einstellungen im Imager setzen.
-6. SD-Karte, LAN und HDMI anschließen und den Pi starten.
-
-Die sichtbare `bootfs`-Partition enthält `disag.txt`. Damit lassen sich Server-IP, Port und Anzeigename ohne neuen Build ändern. Der lokale Diagnosezugang liegt auf `Strg`+`Alt`+`F2`:
+Lokaler Diagnosezugang über `Strg`+`Alt`+`F2`:
 
 ```text
 Benutzer: svvdiag
 Passwort: SVV1905!
 ```
 
-Das Konto besitzt keine `sudo`-Rechte. Kiosk-Protokoll:
+Das Konto besitzt keine `sudo`-Rechte. Das voreingestellte Passwort sollte
+vor einem produktiven Einsatz in `kiosk/install.sh` geändert werden.
+
+Kiosk-Protokoll anzeigen:
 
 ```bash
 journalctl -u disag-kiosk -b
 ```
 
+Gewählte Zielplattform anzeigen:
+
+```bash
+cat /etc/disag-target
+```
+
+## Build unter Windows
+
+PowerShell als Administrator öffnen:
+
+```powershell
+wsl --install -d Debian
+```
+
+Nach dem Neustart Debian öffnen, die Pakete aus
+[Voraussetzungen](#voraussetzungen) installieren und das Projekt im
+Linux-Dateisystem ablegen, beispielsweise unter
+`~/raspberry-disag-viz`. Ein Verzeichnis unter `/mnt/c/` ist für den Build
+nicht empfehlenswert.
+
+Das fertige Image kann anschließend nach Windows kopiert werden:
+
+```bash
+cp output/voelkersen-disag-raspberry-pi-5.img.xz \
+  /mnt/c/Users/DEIN-BENUTZERNAME/Downloads/
+```
+
+## Build unter macOS
+
+Unter macOS wird eine Debian-VM benötigt, beispielsweise mit UTM, VMware Fusion
+oder Parallels. Empfohlen sind mindestens vier CPU-Kerne, 8 GB RAM und 25 GB
+freier VM-Speicher. Der Build wird vollständig innerhalb der VM ausgeführt.
+
+Auf einem ARM64-Linux-Gastsystem läuft der Zielcode nativ. Auf einem
+x86_64-Gastsystem registriert der Builder QEMU für ARM64.
+
+## Basisimage aktualisieren
+
+```bash
+./build-image.sh --download --target ZIEL
+sudo ./build-image.sh --target ZIEL
+```
+
+`--download` überschreibt den vorhandenen Cache für dieses Ziel und prüft
+anschließend die neue offizielle SHA256-Datei.
+
+Raspberry-Pi-Profile erwarten eine FAT-Bootpartition und eine
+ext4-Rootpartition. Die übrigen Profile erwarten das von den ausgewählten
+DietPi-SBC-Images verwendete Layout mit einer ext4-Partition und einem
+reservierten Bootloaderbereich. Änderungen an den offiziellen
+Partitionslayouts können Anpassungen am Builder erforderlich machen.
+
+## Projektstruktur
+| Pfad | Im Git | Zweck |
+|---|:---:|---|
+| `build-image.sh` | ✅ | Zielauswahl, DietPi-Download und Dispatcher |
+| `platforms.conf` | ✅ | Plattformname, DietPi-Dateiname, Layout und Kurzformen |
+| `build-image-raspberrypi.sh` | ✅ | Raspberry-Pi-Backend |
+| `build-image-dietpi-sbc.sh` | ✅ | Gemeinsames Backend der übrigen SBCs |
+| `kiosk/` | ✅ | Gemeinsame Anwendung, Dienste und Raspberry-Pi-Schritte |
+| `sbc/` | ✅ | Installations- und Finalisierungsschritte für DietPi-SBCs |
+| `tools/` | ✅ | Vorbereitung des Bootlogos |
+| `images/` | ✅ | Logo-Quelldateien |
+| `DISAG-VIZ/` | ❌ | Lokale proprietäre Anwendung |
+| `cache/` | ❌ | Heruntergeladene DietPi-Images |
+| `output/` | ❌ | Fertige Images, Prüfsummen und Prüfberichte |
+
 ## DISAG-Version austauschen
 
-1. Neue VIZ-Version aus dem [DISAG-Kundenbereich](https://www.disag.de/login/) herunterladen.
-2. Den bisherigen lokalen Ordner `DISAG-VIZ/` sichern und anschließend vollständig leeren. Alte Klassen oder Bibliotheken sollen nicht mit einer neuen Version vermischt werden.
-3. Den Inhalt des neuen VIZ-ZIP-Archivs nach `DISAG-VIZ/` entpacken.
-4. Prüfen, ob `classes/`, `lib/`, `config/` und `classes/BeamerView.class` vorhanden sind.
-5. `sudo ./build-image.sh` erneut ausführen.
-6. Anwendung und Verbindung zum echten OpticScore-Server testen.
+1. Neue Version aus dem DISAG-Kundenbereich herunterladen.
+2. Den bisherigen lokalen Ordner `DISAG-VIZ/` sichern.
+3. Alte Dateien vollständig entfernen, damit keine Klassen vermischt werden.
+4. Den Inhalt des neuen ZIP-Archivs nach `DISAG-VIZ/` entpacken.
+5. `DISAG-VIZ/classes/BeamerView.class` prüfen.
+6. Das gewünschte Ziel erneut bauen und auf echter Hardware testen.
 
-`jdeps` ermittelt bei jedem Build die benötigten Java-Module neu. Falls DISAG den Startklassennamen oder das Verzeichnislayout ändert, müssen `kiosk/session.sh` und die Dateiprüfung in `build-image.sh` angepasst werden.
-
-## Linux-Basisimage aktualisieren
-
-1. Neues Raspberry Pi OS Lite ARM64 samt offizieller SHA256-Datei herunterladen.
-2. `cache/base.img.xz` und `cache/base.sha256` ersetzen.
-3. Versionen von QEMU und e2fsprogs prüfen.
-4. Image mit `sudo ./build-image.sh` komplett neu bauen.
-5. Start, Logo, HDMI-Hotplug, LAN, App-Neustart und Verbindung zum DISAG-Server auf realer Hardware testen.
-
-Der Build erwartet die übliche Raspberry-Pi-OS-Aufteilung: FAT-Bootpartition 1 und ext4-Rootpartition 2. Ändert Raspberry Pi dieses Layout oder Paketnamen, müssen die Buildskripte angepasst werden.
-
-## Eigenes Vereinslogo
-
-1. Eigenes Logo als PNG unter `images/SVV_Logo.png` ablegen.
-2. Bootgrafik erzeugen:
-
-   Linux beziehungsweise WSL:
-
-   ```bash
-   ./tools/prepare-logo.sh
-   ```
-
-   Windows PowerShell:
-
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\tools\prepare-logo.ps1
-   ```
-
-3. Die erzeugte Datei `kiosk/boot-splash.png` kontrollieren.
-4. Image neu bauen.
-
-Das Logo wird proportional auf höchstens 60 Prozent der 1920×1080-Bootfläche skaliert und auf schwarzem Hintergrund zentriert.
+`jdeps` ermittelt bei jedem Build die benötigten Java-Module neu. Ändert
+DISAG den Startklassennamen oder das Verzeichnislayout, müssen
+`kiosk/session.sh` und die Eingangsprüfung des Backends angepasst werden.
 
 ## GitHub-Release
 
-Images gehören nicht in die Git-Historie. Nach geklärten Weitergaberechten kann das lokale Image als Release-Asset hochgeladen werden, zum Beispiel:
+Images gehören nicht in die Git-Historie. Nach geklärten Weitergaberechten kann
+ein Image beispielsweise so als Release-Asset veröffentlicht werden:
 
 ```bash
 gh release create v1.0.0 \
-  output/voelkersen-disag-pi3-pi5.img.xz \
-  output/voelkersen-disag-pi3-pi5.img.xz.sha256 \
-  --title "DISAG VIZ Raspberry Pi Kiosk v1.0.0"
+  output/voelkersen-disag-raspberry-pi-5.img.xz \
+  output/voelkersen-disag-raspberry-pi-5.img.xz.sha256 \
+  --title "DISAG VIZ DietPi Kiosk v1.0.0"
 ```
+
+## Grenzen und Hardwaretests
+
+- Die Buildskripte und DietPi-Dateinamen werden automatisiert geprüft.
+- Der interne Xvfb-Test prüft Java-Start und Prozessneustart, emuliert aber
+  keinen realen HDMI-/DRM-Ausgang.
+- Bootlogo, Auflösung, HDMI-Hotplug, Ethernet und Bootloader müssen je
+  Boardmodell auf echter Hardware getestet werden.
+- Bei Compute-Modulen hängt die Funktion zusätzlich vom verwendeten
+  Carrierboard ab.
 
 ## Herkunft und Rechte
 
-Die Visualisierungssoftware stammt von [DISAG](https://www.disag.de), laut [Impressum](https://www.disag.de/impressum/) von der **DISAG GmbH & Co KG**. Der offizielle Bezug und die Aktualisierung erfolgen über den DISAG-Kundenbereich; nach der [DISAG-Dokumentation](https://dokumentation.disag.de/dokumentation/anleitung/anleitung-visualisierungssoftware/) kann dafür eine passende Lizenz erforderlich sein.
+Die Visualisierungssoftware stammt von
+[DISAG](https://www.disag.de). Bezug und Aktualisierung erfolgen über den
+DISAG-Kundenbereich; abhängig vom Produkt kann eine passende Lizenz
+erforderlich sein.
 
-Dieses Projekt ist ein privates, inoffizielles Kiosk-Buildprojekt von Websmack und steht in keiner geschäftlichen Verbindung zu DISAG. DISAG, OpticScore, die Software, Logos und weitere Kennzeichen gehören ihren jeweiligen Rechteinhabern. Ich verteile im Git-Repository keine DISAG-Programmdateien und beanspruche daran keine Rechte. Vor einer öffentlichen Veröffentlichung des fertigen Images muss geklärt sein, dass die enthaltene DISAG-Software und das verwendete Vereinslogo weitergegeben werden dürfen. Für Betrieb, Datenverlust und Kompatibilität übernehme ich keine Gewähr.
+Dieses Repository enthält keine DISAG-Programmdateien. Das Projekt ist ein
+privates, inoffizielles Kiosk-Buildprojekt und steht in keiner geschäftlichen
+Verbindung zu DISAG oder DietPi. DISAG, OpticScore, DietPi, Logos und weitere
+Kennzeichen gehören ihren jeweiligen Rechteinhabern.
+
+Vor einer öffentlichen Veröffentlichung eines fertigen Images muss geklärt
+sein, ob die enthaltene DISAG-Software und das verwendete Vereinslogo
+weitergegeben werden dürfen. Für Betrieb, Datenverlust und
+Hardwarekompatibilität wird keine Gewähr übernommen.

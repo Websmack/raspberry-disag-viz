@@ -2,62 +2,76 @@
 set -Eeuo pipefail
 
 ROOT=$(cd "$(dirname "$0")" && pwd)
-WORK=/var/tmp/disag-kiosk-build
-IMAGE="$WORK/root"
+CATALOG="$ROOT/platforms.conf"
+DIETPI_BASE_URL=https://dietpi.com/downloads/images
 
-[[ $EUID -eq 0 ]] || { echo 'Bitte mit sudo starten.' >&2; exit 1; }
-test -s "$ROOT/cache/base.img.xz" || { echo 'cache/base.img.xz fehlt.' >&2; exit 1; }
-test -s "$ROOT/cache/base.sha256" || { echo 'cache/base.sha256 fehlt.' >&2; exit 1; }
-test -s "$ROOT/DISAG-VIZ/classes/BeamerView.class" || { echo 'DISAG-VIZ enthält keine vollständige VIZ-Anwendung.' >&2; exit 1; }
-test -s "$ROOT/images/SVV_Logo.png" || { echo 'images/SVV_Logo.png fehlt.' >&2; exit 1; }
-test -s "$ROOT/kiosk/boot-splash.png" || { echo 'Logo zuerst mit tools/prepare-logo.sh oder tools/prepare-logo.ps1 vorbereiten.' >&2; exit 1; }
-
-for command in losetup mount chroot parted resize2fs e2fsck zerofree xz Xvfb java javac; do
-  command -v "$command" >/dev/null || { echo "Benötigtes Programm fehlt: $command" >&2; exit 1; }
-done
-
-if [[ -e "$WORK" ]]; then
-  mountpoint -q "$IMAGE" && { echo "$IMAGE ist noch eingehängt; Abbruch." >&2; exit 1; }
-  test -z "$(losetup -j "$WORK/kiosk.img" 2>/dev/null || true)" || { echo 'Das alte Build-Image ist noch als Loop-Gerät aktiv.' >&2; exit 1; }
-  [[ "$WORK" == /var/tmp/disag-kiosk-build ]] || exit 1
-  rm -rf -- "$WORK"
-fi
-mkdir -p "$WORK" "$ROOT/output"
-
-case $(uname -m) in
-  aarch64|arm64)
-    QEMU_AARCH64_STATIC=''
-    echo 'Nativer ARM64-Host erkannt; QEMU-Registrierung wird übersprungen.'
-    ;;
-  *)
-    QEMU_AARCH64_STATIC=$(python3 "$ROOT/kiosk/register-qemu.py")
-    ;;
-esac
-export QEMU_AARCH64_STATIC
-
-cleanup_on_error() {
-  status=$?
-  if (( status != 0 )); then
-    for path in dev/pts dev proc sys boot/firmware ''; do
-      mountpoint -q "$IMAGE/$path" && umount "$IMAGE/$path" || true
-    done
-    while read -r loop _; do
-      [[ -n "$loop" ]] && losetup -d "${loop%:}" || true
-    done < <(losetup -j "$WORK/kiosk.img" 2>/dev/null || true)
-  fi
-  python3 "$ROOT/kiosk/cleanup-build.py" >/dev/null 2>&1 || true
-  exit "$status"
+list_targets() {
+  printf '%-24s %-26s %s\n' ZIEL PLATTFORM ARCHITEKTUR
+  while IFS='|' read -r id name image _ _; do
+    [[ -n "$id" && "$id" != \#* ]] || continue
+    arch=${image#*-}; arch=${arch%%-*}
+    printf '%-24s %-26s %s\n' "$id" "$name" "$arch"
+  done < "$CATALOG"
 }
-trap cleanup_on_error EXIT
 
-bash "$ROOT/kiosk/build.sh"
-chroot "$IMAGE" /bin/bash /opt/kiosk-setup/compact-java.sh
-chroot "$IMAGE" /bin/bash /opt/kiosk-setup/minimize.sh
-bash "$ROOT/kiosk/smoke-test.sh"
-bash "$ROOT/kiosk/finish-logo.sh"
-bash "$ROOT/kiosk/inspect-build.sh"
-bash "$ROOT/kiosk/finalize.sh"
+usage() {
+  cat <<'EOF'
+Verwendung:
+  sudo ./build-image.sh --target ZIEL
+  ./build-image.sh --download --target ZIEL
+  ./build-image.sh --list-targets
 
-trap - EXIT
-python3 "$ROOT/kiosk/cleanup-build.py"
-echo "Fertig: $ROOT/output/voelkersen-disag-pi3-pi5.img.xz"
+Optionen:
+  -t, --target ZIEL   Zielplattform auswählen
+  --download          Offizielles DietPi-Image samt SHA256 herunterladen
+  --list-targets      Unterstützte Plattformen anzeigen
+  -h, --help          Hilfe anzeigen
+EOF
+}
+
+target=''; download=0
+while (($#)); do
+  case "$1" in
+    --target|-t)
+      [[ $# -ge 2 && -n "$2" ]] || { echo 'Nach --target fehlt das Ziel.' >&2; usage >&2; exit 2; }
+      target=$2; shift 2
+      ;;
+    --download) download=1; shift ;;
+    --list-targets) list_targets; exit 0 ;;
+    --help|-h) usage; exit 0 ;;
+    *) echo "Unbekanntes Argument: $1" >&2; usage >&2; exit 2 ;;
+  esac
+done
+[[ -n "$target" ]] || { usage >&2; exit 2; }
+
+found=0
+while IFS='|' read -r id name image layout aliases; do
+  [[ -n "$id" && "$id" != \#* ]] || continue
+  if [[ "$target" == "$id" || ",$aliases," == *",$target,"* ]]; then
+    DISAG_TARGET=$id; PLATFORM_NAME=$name; DIETPI_IMAGE=$image; IMAGE_LAYOUT=$layout
+    found=1; break
+  fi
+done < "$CATALOG"
+(( found )) || { echo "Unbekannte Zielplattform: $target" >&2; list_targets >&2; exit 2; }
+
+BASE_IMAGE="$ROOT/cache/$DISAG_TARGET.img.xz"
+BASE_SHA256="$BASE_IMAGE.sha256"
+if (( download )); then
+  mkdir -p "$ROOT/cache"
+  echo "Lade $DIETPI_IMAGE ..."
+  curl -fL --retry 3 "$DIETPI_BASE_URL/$DIETPI_IMAGE" -o "$BASE_IMAGE"
+  curl -fL --retry 3 "$DIETPI_BASE_URL/$DIETPI_IMAGE.sha256" -o "$BASE_SHA256"
+  expected=$(awk 'NR==1{print $1}' "$BASE_SHA256")
+  echo "$expected  $BASE_IMAGE" | sha256sum -c -
+  echo "Gespeichert: $BASE_IMAGE"
+  exit 0
+fi
+
+export DISAG_TARGET PLATFORM_NAME DIETPI_IMAGE IMAGE_LAYOUT BASE_IMAGE BASE_SHA256
+export OUTPUT_BASENAME="voelkersen-disag-$DISAG_TARGET"
+echo "Zielplattform: $PLATFORM_NAME ($DISAG_TARGET)"
+case "$IMAGE_LAYOUT" in
+  rpi) exec bash "$ROOT/build-image-raspberrypi.sh" ;;
+  sbc) exec bash "$ROOT/build-image-dietpi-sbc.sh" ;;
+  *) echo "Unbekanntes Image-Layout: $IMAGE_LAYOUT" >&2; exit 2 ;;
+esac
