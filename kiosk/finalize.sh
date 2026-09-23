@@ -38,6 +38,14 @@ chroot "$IMAGE" dpkg-query -W > "$ROOT/output/packages.txt"
 cp "$IMAGE/opt/java-modules.txt" "$ROOT/output/java-modules.txt"
 sync
 for path in dev/pts dev proc sys boot/firmware ''; do umount "$IMAGE/$path"; done
+# DietPi images intentionally ship without an ext4 journal and add one during
+# the first boot. With our initramfs this requires an extra fsck/reboot cycle,
+# whose last visible line is "Setting maximal mount count to -1". Add the
+# journal while the filesystem is offline so first boot can continue directly.
+if ! tune2fs -l "${LOOP}p2" | grep -q 'has_journal'; then
+  echo 'Adding ext4 journal before image finalization'
+  tune2fs -O has_journal "${LOOP}p2"
+fi
 e2fsck -pf "${LOOP}p2" || test $? -eq 1
 resize2fs -M "${LOOP}p2"
 blocks=$(dumpe2fs -h "${LOOP}p2" 2>/dev/null | awk '/^Block count:/{print $3}')

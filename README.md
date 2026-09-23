@@ -247,6 +247,12 @@ DietPi wird beim ersten Start automatisch und ohne Dialoge eingerichtet:
 Der Kiosk-Dienst wartet auf DietPi-Firstboot und die Netzwerkverfügbarkeit.
 Danach startet die Visualisierung auf `tty1`.
 
+Die Meldung `Setting maximal mount count to -1` stammt von `tune2fs` und ist
+für sich kein Fehler. Aktuelle Builds legen das ext4-Journal bereits beim
+Erstellen des Images an und vermeiden damit DietPis zusätzlichen
+Journal-/Neustart-Schritt. Falls diese Meldung mit einem älteren Image dauerhaft
+stehen bleibt, das Image neu bauen und erneut auf die Karte schreiben.
+
 Lokaler Diagnosezugang über `Strg`+`Alt`+`F2`:
 
 ```text

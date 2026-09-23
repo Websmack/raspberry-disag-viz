@@ -27,6 +27,12 @@ chroot "$IMAGE" dpkg-query -W > "$ROOT/output/sbc-packages.txt"
 cp "$IMAGE/opt/java-modules.txt" "$ROOT/output/sbc-java-modules.txt"
 sync
 for path in dev/pts dev proc sys ''; do umount "$IMAGE/$path"; done
+# Avoid DietPi's first-boot journal creation and its additional reboot when an
+# initramfs is present. Performing this offline is deterministic for all images.
+if ! tune2fs -l "${LOOP}p1" | grep -q 'has_journal'; then
+  echo 'Adding ext4 journal before image finalization'
+  tune2fs -O has_journal "${LOOP}p1"
+fi
 e2fsck -pf "${LOOP}p1" || test $? -eq 1
 resize2fs -M "${LOOP}p1"
 blocks=$(dumpe2fs -h "${LOOP}p1" 2>/dev/null | awk '/^Block count:/{print $3}')
