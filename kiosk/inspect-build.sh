@@ -40,5 +40,5 @@ test ! -e "$IMAGE/etc/sudoers.d/svvdiag"
 grep -q 'console=tty1' "$IMAGE/boot/firmware/cmdline.txt"
 grep -q 'systemd.show_status=false' "$IMAGE/boot/firmware/cmdline.txt"
 grep -q '^auto_initramfs=1$' "$IMAGE/boot/firmware/config.txt"
-find "$IMAGE/boot/firmware" -maxdepth 1 -type f \( -name 'initramfs8' -o -name 'initramfs_2712' \) -size +0c | grep -q .
+find "$IMAGE/boot/firmware" -maxdepth 1 -type f \( -name 'initramfs7' -o -name 'initramfs8' -o -name 'initramfs_2712' \) -size +0c | grep -q .
 df -h "$IMAGE" "$IMAGE/boot/firmware"

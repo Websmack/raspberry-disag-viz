@@ -2,7 +2,7 @@
 
 Dieses Projekt erzeugt ein minimales, direkt startendes Kiosk-Image für die
 DISAG-OpticScore-Visualisierung. Als Basis dienen offizielle
-[**DietPi Trixie ARM64**-Images](https://dietpi.com/#download). Der Builder unterstützt derzeit 42 Profile für Raspberry Pi,
+[**DietPi Trixie**-Images](https://dietpi.com/#download). Der Builder unterstützt derzeit 44 Profile für Raspberry Pi,
 Orange Pi, ODROID, Radxa/ROCK, NanoPi/NanoPC und Pine64.
 
 Das fertige System:
@@ -49,12 +49,17 @@ Enthalten sind:
 
 | Familie | Profile |
 |---|---|
-| Raspberry Pi | 3B+, 4, 5 |
+| Raspberry Pi | 2 Model B PCB v1.1 (ARMv7), 2 Model B PCB v1.2 (ARMv8), 3B+, 4, 5 |
 | Orange Pi | 3, 3B, 3 LTS, 4A, 4 LTS, 4 Pro, 5, 5B, 5 Plus, 5 Max, 5 Pro, 5 Ultra, CM5 |
 | ODROID | C2, C4, N2/N2+, M1, M1S, M2 |
 | Radxa/ROCK | ROCK 3A, Pi 4, 4C+, 4 SE, 5A, 5B, Radxa Zero, ZERO 3 |
 | Pine64 | A64, H64, ROCK64, ROCKPro64, Quartz64 A/B |
 | FriendlyElec | NanoPC-T4/T6, NanoPi M4/M4V2/M5/M6 |
+
+Für einen Raspberry Pi 2 steht die PCB-Revision auf der Platine. Revision 1.1
+wird mit `--target raspberry-pi-2` als ARMv7 gebaut. Revision 1.2 verwendet
+`--target raspberry-pi-2-v1.2` und das schnellere ARMv8-Image. Das ARMv8-Image
+kann auf Revision 1.1 nicht booten.
 
 Ein Profil bedeutet, dass ein offizielles DietPi-Image vorhanden und der
 passende Buildpfad implementiert ist. Bootloader, HDMI/KMS, Netzwerk und die

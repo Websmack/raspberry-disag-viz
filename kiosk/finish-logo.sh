@@ -46,6 +46,7 @@ for kernel in "${kernels[@]}"; do
     case "$kernel" in
         *2712*) firmware_initramfs="$IMAGE/boot/firmware/initramfs_2712" ;;
         *v8*) firmware_initramfs="$IMAGE/boot/firmware/initramfs8" ;;
+        *v7*) firmware_initramfs="$IMAGE/boot/firmware/initramfs7" ;;
         *)
             echo "ERROR: Unsupported Raspberry Pi kernel for initramfs: $kernel" >&2
             exit 1

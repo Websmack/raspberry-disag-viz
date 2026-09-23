@@ -25,11 +25,18 @@ if [[ -e "$WORK" ]]; then
   rm -rf -- "$WORK"
 fi
 mkdir -p "$WORK" "$ROOT/output"
-case $(uname -m) in
-  aarch64|arm64) QEMU_AARCH64_STATIC=''; echo 'Nativer ARM64-Host erkannt; QEMU-Registrierung wird übersprungen.' ;;
-  *) QEMU_AARCH64_STATIC=$(python3 "$ROOT/kiosk/register-qemu.py") ;;
+case "$DIETPI_IMAGE" in
+  *-ARMv7-*) TARGET_ARCH=armhf; native_pattern='armv7l|armv8l';;
+  *-ARMv8-*) TARGET_ARCH=arm64; native_pattern='aarch64|arm64';;
+  *) echo "Nicht unterstützte Raspberry-Pi-Architektur: $DIETPI_IMAGE" >&2; exit 1;;
 esac
-export QEMU_AARCH64_STATIC OUTPUT_BASENAME DISAG_TARGET BASE_IMAGE BASE_SHA256
+if [[ $(uname -m) =~ ^($native_pattern)$ ]]; then
+  QEMU_STATIC=''
+  echo "Nativer $TARGET_ARCH-Host erkannt; QEMU-Registrierung wird übersprungen."
+else
+  QEMU_STATIC=$(TARGET_ARCH="$TARGET_ARCH" python3 "$ROOT/kiosk/register-qemu.py")
+fi
+export QEMU_STATIC TARGET_ARCH OUTPUT_BASENAME DISAG_TARGET BASE_IMAGE BASE_SHA256
 cleanup_on_error() {
   status=$?
   if (( status != 0 )); then

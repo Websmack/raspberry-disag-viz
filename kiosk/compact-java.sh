@@ -8,7 +8,8 @@ cd /opt/DISAG-VIZ
 jdeps --ignore-missing-deps --multi-release 21 --recursive --print-module-deps --class-path 'lib/*' classes lib/*.jar > /opt/java-modules.txt
 modules=$(tail -n 1 /opt/java-modules.txt)
 test -n "$modules"
-jlink --module-path /usr/lib/jvm/java-21-openjdk-arm64/jmods --add-modules "$modules,jdk.charsets,jdk.unsupported,jdk.crypto.ec" --strip-debug --no-header-files --no-man-pages --compress=zip-6 --output /opt/java
+deb_arch=$(dpkg --print-architecture)
+jlink --module-path "/usr/lib/jvm/java-21-openjdk-$deb_arch/jmods" --add-modules "$modules,jdk.charsets,jdk.unsupported,jdk.crypto.ec" --strip-debug --no-header-files --no-man-pages --compress=zip-6 --output /opt/java
 cp --remove-destination /etc/ssl/certs/java/cacerts /opt/java/lib/security/cacerts
 # Keep native libraries needed by the generated runtime when removing the JDK/JRE.
 mapfile -t native < <(

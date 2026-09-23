@@ -22,7 +22,7 @@ for path in var/lib/apt/lists var/cache/apt var/log tmp var/tmp opt/kiosk-setup;
   [[ "$target" == "$IMAGE/"* ]] || exit 1
   find "$target" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
 done
-rm -f "$IMAGE/usr/bin/qemu-aarch64-static"
+rm -f "$IMAGE/usr/bin/qemu-aarch64-static" "$IMAGE/usr/bin/qemu-arm-static"
 rm -f "$IMAGE/core" "$IMAGE/opt/DISAG-VIZ/core"
 # Preserve package copyright/license notices while omitting offline manuals.
 find "$IMAGE/usr/share/doc" -type f ! -name copyright ! -iname '*license*' -delete

@@ -24,9 +24,9 @@ e2fsck -pf "${LOOP}p2" || test $? -eq 1
 resize2fs "${LOOP}p2"
 mount "${LOOP}p2" "$WORK/root"
 mount "${LOOP}p1" "$WORK/root/boot/firmware"
-if [[ -n ${QEMU_AARCH64_STATIC:-} ]]; then
-  test -x "$QEMU_AARCH64_STATIC"
-  cp "$QEMU_AARCH64_STATIC" "$WORK/root/usr/bin/qemu-aarch64-static"
+if [[ -n ${QEMU_STATIC:-} ]]; then
+  test -x "$QEMU_STATIC"
+  cp "$QEMU_STATIC" "$WORK/root/usr/bin/$(basename "$QEMU_STATIC")"
 fi
 cp -L /etc/resolv.conf "$WORK/root/etc/resolv.conf"
 mount --bind /dev "$WORK/root/dev"
