@@ -12,16 +12,20 @@ apt-get install -y --no-install-recommends \
     locales \
     binutils \
     ca-certificates
-sed -i 's/^# *\(de_DE.UTF-8 UTF-8\)/\1/' /etc/locale.gen
-locale-gen de_DE.UTF-8
+if ! grep -Eq '^de_DE\.UTF-8[[:space:]]+UTF-8([[:space:]]|$)' /etc/locale.gen; then
+    printf '%s\n' 'de_DE.UTF-8 UTF-8' >> /etc/locale.gen
+fi
+locale-gen
+if ! locale -a | grep -Eiq '^de_DE\.utf-?8$'; then
+    echo 'Die Locale de_DE.UTF-8 konnte nicht erzeugt werden.' >&2
+    exit 1
+fi
 cat > /etc/default/locale <<'EOF'
 LANG=de_DE.UTF-8
 LANGUAGE=de_DE:de
-LC_ALL=de_DE.UTF-8
 EOF
 export LANG=de_DE.UTF-8
 export LANGUAGE=de_DE:de
-export LC_ALL=de_DE.UTF-8
 apt-get install -y --no-install-recommends openjdk-21-jre xserver-xorg-core xserver-xorg-video-fbdev xserver-xorg-input-libinput xinit x11-xserver-utils openbox fonts-dejavu-core plymouth plymouth-themes network-manager
 id kiosk >/dev/null 2>&1 || useradd -m -s /usr/sbin/nologin -G video,render,audio kiosk
 passwd -l kiosk
@@ -53,6 +57,8 @@ printf '[Manager]\nRuntimeWatchdogSec=30s\nRebootWatchdogSec=2min\nShowStatus=no
 systemctl enable NetworkManager.service disag-network.service disag-kiosk.service
 systemctl set-default multi-user.target
 systemctl mask getty@tty1.service getty@tty3.service console-getty.service userconfig.service userconfig-pi.service
+systemctl unmask getty@tty2.service
+systemctl enable getty@tty2.service
 systemctl disable ssh.service 2>/dev/null || true
 mkdir -p /etc/NetworkManager/system-connections
 python3 /usr/local/bin/disag-network

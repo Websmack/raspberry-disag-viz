@@ -33,12 +33,19 @@ test -s "$IMAGE/usr/share/plymouth/themes/voelkersen/boot-splash.png"
 grep -q 'Image("boot-splash.png")' "$IMAGE/usr/share/plymouth/themes/voelkersen/voelkersen.script"
 test -s "$IMAGE/opt/java/lib/security/cacerts"
 chroot "$IMAGE" systemctl is-enabled getty@tty1.service | grep -q masked
+chroot "$IMAGE" systemctl is-enabled getty@tty2.service | grep -q enabled
 chroot "$IMAGE" systemctl is-enabled console-getty.service | grep -q masked
+for dietpi_config in "$IMAGE/boot/dietpi.txt" "$IMAGE/boot/firmware/dietpi.txt"; do
+  test -f "$dietpi_config" || continue
+  grep -q '^AUTO_SETUP_HEADLESS=0$' "$dietpi_config"
+  grep -q '^AUTO_UNMASK_LOGIND=1$' "$dietpi_config"
+done
 chroot "$IMAGE" id svvdiag | grep -q 'systemd-journal'
 chroot "$IMAGE" passwd -S svvdiag | grep -q ' P '
 test ! -e "$IMAGE/etc/sudoers.d/svvdiag"
 grep -q 'console=tty1' "$IMAGE/boot/firmware/cmdline.txt"
 grep -q 'systemd.show_status=false' "$IMAGE/boot/firmware/cmdline.txt"
 grep -q '^auto_initramfs=1$' "$IMAGE/boot/firmware/config.txt"
+grep -Eq '^[[:space:]]*dtoverlay=vc4-kms-v3d' "$IMAGE/boot/firmware/config.txt"
 find "$IMAGE/boot/firmware" -maxdepth 1 -type f \( -name 'initramfs7' -o -name 'initramfs8' -o -name 'initramfs_2712' \) -size +0c | grep -q .
 df -h "$IMAGE" "$IMAGE/boot/firmware"
