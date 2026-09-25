@@ -1,0 +1,20 @@
+[Unit]
+Description=Complete DietPi first-run setup for the DISAG kiosk
+After=dietpi-firstboot.service
+ConditionPathExists=/boot/dietpi/.install_stage
+
+[Service]
+Type=oneshot
+# DietPi's firstboot service sets stage 0. dietpi-login then performs the
+# update and software setup as root, without relying on a tty1 autologin.
+ExecCondition=/bin/sh -c 'case "$(cat /boot/dietpi/.install_stage)" in 0|1) exit 0;; *) exit 1;; esac'
+ExecStart=/boot/dietpi/dietpi-login
+StandardInput=tty
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/tty3
+TTYReset=yes
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

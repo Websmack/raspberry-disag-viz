@@ -44,17 +44,19 @@ install -m 755 /opt/kiosk-setup/display.py /usr/local/bin/disag-display
 install -m 755 /opt/kiosk-setup/settings.py /usr/local/bin/disag-settings
 install -m 755 /opt/kiosk-setup/network.py /usr/local/bin/disag-network
 install -m 755 /opt/kiosk-setup/wait-display.sh /usr/local/bin/disag-wait-display
-install -m 644 /opt/kiosk-setup/disag.txt /boot/firmware/disag.txt
-install -m 600 /opt/kiosk-setup/network.txt /boot/firmware/network.txt
+install -m 644 /opt/kiosk-setup/config/disag.txt /boot/firmware/disag.txt
+install -m 600 /opt/kiosk-setup/config/network.txt /boot/firmware/network.txt
 install -m 644 /opt/kiosk-setup/disag-kiosk.service /etc/systemd/system/
 install -m 644 /opt/kiosk-setup/disag-network.service /etc/systemd/system/
+install -m 644 /opt/kiosk-setup/disag-dietpi-first-run.service /etc/systemd/system/
+install -m 644 /opt/kiosk-setup/disag-diagnostics.bash /etc/bashrc.d/00-disag-diagnostics.sh
 install -m 644 /opt/kiosk-setup/openbox.xml /etc/xdg/openbox/kiosk.xml
 rm -f /etc/X11/xorg.conf.d/20-disag-fbdev.conf
 install -m 644 /opt/kiosk-setup/kms.conf /etc/X11/xorg.conf.d/20-disag-kms.conf
 mkdir -p /etc/systemd/journald.conf.d /etc/systemd/system.conf.d
 printf '[Journal]\nStorage=volatile\nRuntimeMaxUse=16M\n' > /etc/systemd/journald.conf.d/kiosk.conf
 printf '[Manager]\nRuntimeWatchdogSec=30s\nRebootWatchdogSec=2min\nShowStatus=no\n' > /etc/systemd/system.conf.d/kiosk.conf
-systemctl enable NetworkManager.service disag-network.service disag-kiosk.service
+systemctl enable NetworkManager.service disag-network.service disag-kiosk.service disag-dietpi-first-run.service
 systemctl set-default multi-user.target
 systemctl mask getty@tty1.service getty@tty3.service console-getty.service userconfig.service userconfig-pi.service
 systemctl unmask getty@tty2.service

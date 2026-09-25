@@ -42,6 +42,8 @@ mkdir -p "$IMAGE/opt/DISAG-VIZ" "$IMAGE/opt/sbc-setup" "$IMAGE/opt/kiosk-common"
 cp -a "$ROOT/DISAG-VIZ/." "$IMAGE/opt/DISAG-VIZ/"
 cp -a "$ROOT/sbc/." "$IMAGE/opt/sbc-setup/"
 cp -a "$ROOT/kiosk/." "$IMAGE/opt/kiosk-common/"
+mkdir -p "$IMAGE/opt/kiosk-common/config"
+cp -a "$ROOT/config/disag.txt" "$ROOT/config/network.txt" "$IMAGE/opt/kiosk-common/config/"
 chroot "$IMAGE" /bin/bash /opt/sbc-setup/install.sh
 if [[ -n "$RESOLV_LINK" ]]; then
   rm -f "$IMAGE/etc/resolv.conf"

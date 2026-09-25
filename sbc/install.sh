@@ -21,8 +21,8 @@ install -m 755 /opt/kiosk-common/display.py /usr/local/bin/disag-display
 install -m 755 /opt/kiosk-common/settings.py /usr/local/bin/disag-settings
 install -m 755 /opt/kiosk-common/network.py /usr/local/bin/disag-network
 install -m 755 /opt/sbc-setup/wait-display.sh /usr/local/bin/disag-wait-display
-install -m 644 /opt/kiosk-common/disag.txt /boot/disag.txt
-install -m 600 /opt/kiosk-common/network.txt /boot/network.txt
+install -m 644 /opt/kiosk-common/config/disag.txt /boot/disag.txt
+install -m 600 /opt/kiosk-common/config/network.txt /boot/network.txt
 install -m 644 /opt/kiosk-common/disag-kiosk.service /etc/systemd/system/
 install -m 644 /opt/kiosk-common/disag-network.service /etc/systemd/system/
 install -m 644 /opt/kiosk-common/openbox.xml /etc/xdg/openbox/kiosk.xml

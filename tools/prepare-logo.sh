@@ -3,7 +3,32 @@ set -Eeuo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 ROOT=$(cd -- "$SCRIPT_DIR/.." && pwd)
-INPUT_PATH=${1:-"$ROOT/images/SVV_Logo.png"}
+usage() {
+    echo 'Verwendung: ./tools/prepare-logo.sh [--logo DATEINAME|BILDPFAD]'
+    echo 'Ein Dateiname ohne Verzeichnis wird unter images/ gesucht.'
+}
+
+case $# in
+    0) input=BootLogo.png ;;
+    1)
+        case $1 in
+            -h|--help) usage; exit 0 ;;
+            --logo) echo 'Nach --logo fehlt der Dateiname.' >&2; exit 2 ;;
+            *) input=$1 ;;
+        esac
+        ;;
+    2)
+        [[ $1 == --logo && -n $2 ]] || { usage >&2; exit 2; }
+        input=$2
+        ;;
+    *) usage >&2; exit 2 ;;
+esac
+
+if [[ $input == */* ]]; then
+    INPUT_PATH=$input
+else
+    INPUT_PATH="$ROOT/images/$input"
+fi
 OUTPUT_PATH="$ROOT/kiosk/boot-splash.png"
 LOGO_PATH="$ROOT/kiosk/logo.png"
 

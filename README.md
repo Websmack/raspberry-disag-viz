@@ -2,8 +2,9 @@
 
 Dieses Projekt erzeugt ein minimales, direkt startendes Kiosk-Image für die
 DISAG-OpticScore-Visualisierung. Als Basis dienen offizielle
-[**DietPi Trixie**-Images](https://dietpi.com/#download). Der Builder unterstützt derzeit 44 Profile für Raspberry Pi,
-Orange Pi, ODROID, Radxa/ROCK, NanoPi/NanoPC und Pine64.
+[**DietPi Trixie**-Images](https://dietpi.com/#download). Der Builder unterstützt
+derzeit 44 Profile für Raspberry Pi, Orange Pi, ODROID, Radxa/ROCK,
+NanoPi/NanoPC und Pine64.
 
 Das fertige System:
 
@@ -19,14 +20,13 @@ Erstellt von **Websmack** für den Schützenverein Völkersen.
 
 ## Schnellstart
 
-Der eigentliche Image-Build benötigt Linux und Root-Rechte. Download und
-Prüfung des DietPi-Basisimages laufen ohne `sudo`.
+Der eigentliche Image-Build benötigt Linux und Root-Rechte. Das DietPi-Basisimage
+kann vorab ohne `sudo` heruntergeladen und geprüft werden. Fehlt es beim Build,
+fragt das Skript nach dem Download.
 
 ```bash
 ./build-image.sh --list-targets
-./build-image.sh --download --target raspberry-pi-5
-./tools/prepare-logo.sh
-sudo ./build-image.sh --target raspberry-pi-5
+sudo ./build-image.sh --target raspberry-pi-5 --bootimage
 ```
 
 Das Ergebnis liegt anschließend hier:
@@ -38,7 +38,7 @@ output/voelkersen-disag-raspberry-pi-5.img.xz.sha256
 
 ## Unterstützte Plattformen
 
-Die verbindliche Liste wird direkt aus [`platforms.conf`](platforms.conf)
+Die verbindliche Liste wird direkt aus [`config/platforms.conf`](config/platforms.conf)
 erzeugt:
 
 ```bash
@@ -87,7 +87,7 @@ Benötigte Pakete unter Debian:
 ```bash
 sudo apt update
 sudo apt install qemu-user-static binfmt-support e2fsprogs parted zerofree \
-  xz-utils python3 ffmpeg curl openjdk-17-jdk-headless xvfb x11-utils git
+  xz-utils python3 ffmpeg curl openjdk-21-jdk-headless xvfb x11-utils git
 ```
 
 Zusätzlich werden mindestens 12 GB freier Speicher empfohlen.
@@ -106,12 +106,12 @@ DISAG-VIZ/classes/BeamerView.class
 
 ### 2. Verbindung konfigurieren
 
-Die Vorgaben für den OpticScore-Server stehen in [`kiosk/disag.txt`](kiosk/disag.txt):
+Die Vorgaben für den OpticScore-Server stehen in [`config/disag.txt`](config/disag.txt):
 
 ```ini
 serverip=192.168.0.101
 serverport=7934
-vizname=SV-Völkersen-VIZ
+vizname=SV-Voelkersen-VIZ
 ```
 
 Die Datei wird in die Bootpartition übernommen und kann dort später ohne
@@ -119,7 +119,7 @@ erneuten Build angepasst werden.
 
 ### 3. Netzwerk konfigurieren
 
-LAN und WLAN werden über [`kiosk/network.txt`](kiosk/network.txt) konfiguriert.
+LAN und WLAN werden über [`config/network.txt`](config/network.txt) konfiguriert.
 Beide Schnittstellen können einzeln oder gleichzeitig aktiviert werden. Im
 Auslieferungszustand ist LAN mit DHCP aktiv und WLAN deaktiviert:
 
@@ -163,31 +163,44 @@ bevorzugt; WLAN bleibt als zweite Verbindung aktiv.
 
 ### 4. Bootlogo erzeugen
 
-Das Quelllogo liegt unter `images/SVV_Logo.png`. Unter Linux oder WSL:
+Standardmäßig wird `images/BootLogo.png` verwendet. Einen anderen Dateinamen
+aus `images/` mit `--logo` bzw. `-LogoFile` angeben. Unter Linux oder WSL:
 
 ```bash
+./build-image.sh --bootimage
+./build-image.sh --bootimage --logo MeinLogo.png
 ./tools/prepare-logo.sh
+./tools/prepare-logo.sh --logo MeinLogo.png
 ```
+
+Mit `sudo ./build-image.sh --target ZIEL --bootimage --logo MeinLogo.png`
+werden Bootgrafik und fertiges Image in einem Durchlauf erstellt. Ohne `--logo`
+wird das Standardlogo verwendet.
 
 Unter Windows PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\prepare-logo.ps1
+powershell -ExecutionPolicy Bypass -File .\tools\prepare-logo.ps1 -LogoFile MeinLogo.png
 ```
 
-Dabei wird `kiosk/boot-splash.png` als zentrierte 1920×1080-Bootgrafik
-erzeugt.
+Dabei wird das Quellbild nach `kiosk/logo.png` kopiert und als zentrierte
+1920×1080-Bootgrafik unter `kiosk/boot-splash.png` gespeichert. Ein
+vollständiger Bildpfad ist ebenfalls möglich.
 
 ### 5. Skripte ausführbar machen
 
 ```bash
-chmod +x build-image.sh build-image-raspberrypi.sh build-image-dietpi-sbc.sh \
+chmod +x build-image.sh build-image-platform.sh \
   kiosk/*.sh sbc/*.sh tools/*.sh
 ```
 
 ## Image erstellen
 
-Zuerst das offizielle DietPi-Image samt SHA256-Datei herunterladen:
+Fehlt das offizielle DietPi-Basisimage oder seine SHA256-Datei im Cache, fragt
+der interaktive Build, ob beides heruntergeladen werden soll. Mit `j` oder `ja`
+wird der Download gestartet und vor dem Build geprüft. Ohne Terminal oder für
+einen geplanten Cache-Download kann er separat ohne `sudo` ausgeführt werden:
 
 ```bash
 ./build-image.sh --download --target orange-pi-5
@@ -199,6 +212,10 @@ den Build mit demselben Ziel starten:
 ```bash
 sudo ./build-image.sh --target orange-pi-5
 ```
+
+Mit `--bootimage` wird vor dem Build auch die Bootgrafik aus dem Standardlogo
+erzeugt; `--logo DATEI` wählt ein anderes Quellbild aus `images/` oder einen
+vollständigen Bildpfad.
 
 Kurzformen wie `rpi5`, `opi5`, `c4` oder `rock5b` werden ebenfalls
 akzeptiert. Die kanonischen Namen aus `--list-targets` sind für Skripte und
@@ -236,12 +253,16 @@ werden.
 4. Karte, Ethernet und HDMI am Zielboard anschließen.
 5. Board starten und die automatische DietPi-Ersteinrichtung abwarten.
 
+Bei Raspberry Pi Imager die zusätzliche OS-Anpassung überspringen; die
+Netzwerk- und Kiosk-Einstellungen sind bereits im Image hinterlegt.
+
 Beim Schreiben wird der bisherige Inhalt der Speicherkarte gelöscht. Das Image
 darf nur für das im Dateinamen angegebene Board verwendet werden.
 
 ## Erster Start und Diagnose
 
-DietPi wird beim ersten Start automatisch und ohne Dialoge eingerichtet:
+Die Builder konfigurieren DietPi für eine
+[automatisierte Ersteinrichtung](https://dietpi.com/docs/usage/):
 
 - LAN und WLAN entsprechend `network.txt`,
 - Zeitzone `Europe/Berlin`,
@@ -250,9 +271,18 @@ DietPi wird beim ersten Start automatisch und ohne Dialoge eingerichtet:
 - keine DietPi-Telemetrie.
 
 Der Kiosk-Dienst wartet nur auf den Start des NetworkManagers, aber nicht auf
-DHCP, Internet oder das Ende von DietPi-Firstboot. Die Visualisierung startet
-daher auch ohne Netzwerk auf `tty1` und verbindet sich selbständig mit dem
-DISAG-Server, sobald dieser erreichbar ist.
+DHCP, Internet oder das Ende von DietPi-Firstboot. Die Visualisierung kann
+daher auch ohne Netzwerk auf `tty1` starten und verbindet sich selbständig mit
+dem DISAG-Server, sobald dieser erreichbar ist. Für DietPis anfängliches Update
+wird eine Internetverbindung benötigt.
+
+Auf Raspberry-Pi-Images führt `disag-dietpi-first-run.service` die
+DietPi-Ersteinrichtung mit Root-Rechten auf `tty3` aus; der Diagnose-Login auf
+`tty2` startet sie nicht. Dieser zusätzliche Dienst wird auf den anderen
+SBC-Images derzeit nicht installiert. Deren Erststart muss auf dem jeweiligen
+Board geprüft werden. Beim Raspberry Pi 4 erhält sowohl HDMI0 als auch HDMI1
+einen 1080p-Bootmodus; die Anwendung wählt anschließend den Bildschirm mit
+erkanntem EDID.
 
 Die Meldung `Setting maximal mount count to -1` stammt von `tune2fs` und ist
 für sich kein Fehler. Aktuelle Builds legen das ext4-Journal bereits beim
@@ -260,7 +290,7 @@ Erstellen des Images an und vermeiden damit DietPis zusätzlichen
 Journal-/Neustart-Schritt. Falls diese Meldung mit einem älteren Image dauerhaft
 stehen bleibt, das Image neu bauen und erneut auf die Karte schreiben.
 
-Lokaler Diagnosezugang über `Strg`+`Alt`+`F2`:
+Lokaler Diagnosezugang beim Raspberry Pi über `Strg`+`Alt`+`F2`:
 
 ```text
 Benutzer: svvdiag
@@ -275,6 +305,21 @@ Kiosk-Protokoll anzeigen:
 ```bash
 journalctl -u disag-kiosk -b
 ```
+
+Status der DietPi-Ersteinrichtung auf einem Raspberry Pi anzeigen:
+
+```bash
+systemctl status disag-dietpi-first-run.service
+cat /boot/dietpi/.install_stage
+```
+
+Installationsstufe `2` bedeutet, dass DietPis Ersteinrichtung abgeschlossen ist.
+Falls die Stufe `0` bleibt und `disag-dietpi-first-run.service` nicht gefunden
+wird, fehlt die Korrektur auf dem tatsächlich gestarteten Root-Dateisystem.
+Ein mit diesem Projektstand neu gebautes Raspberry-Pi-Image enthält sowohl
+`/etc/systemd/system/disag-dietpi-first-run.service` als auch
+`/etc/bashrc.d/00-disag-diagnostics.sh`. Vor erneutem Flashen Dateiname und
+SHA256-Prüfsumme des Images kontrollieren.
 
 Gewählte Zielplattform anzeigen:
 
@@ -329,12 +374,12 @@ reservierten Bootloaderbereich. Änderungen an den offiziellen
 Partitionslayouts können Anpassungen am Builder erforderlich machen.
 
 ## Projektstruktur
+
 | Pfad | Im Git | Zweck |
 |---|:---:|---|
 | `build-image.sh` | ✅ | Zielauswahl, DietPi-Download und Dispatcher |
-| `platforms.conf` | ✅ | Plattformname, DietPi-Dateiname, Layout und Kurzformen |
-| `build-image-raspberrypi.sh` | ✅ | Raspberry-Pi-Backend |
-| `build-image-dietpi-sbc.sh` | ✅ | Gemeinsames Backend der übrigen SBCs |
+| `config/` | ✅ | Plattformprofile, DISAG-Server und Netzwerkeinstellungen |
+| `build-image-platform.sh` | ✅ | Gemeinsamer Builder für Raspberry Pi und andere SBCs |
 | `kiosk/` | ✅ | Gemeinsame Anwendung, Dienste und Raspberry-Pi-Schritte |
 | `sbc/` | ✅ | Installations- und Finalisierungsschritte für DietPi-SBCs |
 | `tools/` | ✅ | Vorbereitung des Bootlogos |
@@ -362,15 +407,17 @@ Images gehören nicht in die Git-Historie. Nach geklärten Weitergaberechten kan
 ein Image beispielsweise so als Release-Asset veröffentlicht werden:
 
 ```bash
-gh release create v1.0.0 \
+gh release create 1.0.0 \
+  output/voelkersen-disag-raspberry-pi-4.img.xz \
+  output/voelkersen-disag-raspberry-pi-4.img.xz.sha256 \
   output/voelkersen-disag-raspberry-pi-5.img.xz \
   output/voelkersen-disag-raspberry-pi-5.img.xz.sha256 \
-  --title "DISAG VIZ DietPi Kiosk v1.0.0"
+  --title "DISAG VIZ DietPi Kiosk 1.0.0"
 ```
 
 ## Grenzen und Hardwaretests
 
-- Die Buildskripte und DietPi-Dateinamen werden automatisiert geprüft.
+- Der Download prüft die SHA256-Summe des gewählten DietPi-Basisimages.
 - Der interne Xvfb-Test prüft Java-Start und Prozessneustart, emuliert aber
   keinen realen HDMI-/DRM-Ausgang.
 - Bootlogo, Auflösung, HDMI-Hotplug, Ethernet und Bootloader müssen je

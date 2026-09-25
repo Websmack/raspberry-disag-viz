@@ -4,6 +4,7 @@ IMAGE=/var/tmp/disag-kiosk-build/root
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 for script in "$ROOT"/kiosk/*.sh; do bash -n "$script"; done
 python3 "$ROOT/kiosk/test_display.py"
+python3 "$ROOT/kiosk/test_boot_config.py"
 python3 "$ROOT/kiosk/test_network.py"
 bash "$ROOT/kiosk/test_wait_display.sh"
 chroot "$IMAGE" dpkg-query -W '-f=${Installed-Size}\t${binary:Package}\n' | sort -nr | head -25
@@ -16,6 +17,7 @@ cat "$IMAGE/boot/firmware/config.txt"
 chroot "$IMAGE" dpkg --audit
 chroot "$IMAGE" systemctl is-enabled disag-kiosk.service
 chroot "$IMAGE" systemctl is-enabled disag-network.service
+chroot "$IMAGE" systemctl is-enabled disag-dietpi-first-run.service
 chroot "$IMAGE" systemctl is-enabled NetworkManager.service
 test -s "$IMAGE/boot/firmware/network.txt"
 test -s "$IMAGE/etc/NetworkManager/system-connections/kiosk-lan.nmconnection"
@@ -34,6 +36,7 @@ grep -q 'Image("boot-splash.png")' "$IMAGE/usr/share/plymouth/themes/voelkersen/
 test -s "$IMAGE/opt/java/lib/security/cacerts"
 chroot "$IMAGE" systemctl is-enabled getty@tty1.service | grep -q masked
 chroot "$IMAGE" systemctl is-enabled getty@tty2.service | grep -q enabled
+chroot "$IMAGE" systemctl is-enabled getty@tty3.service | grep -q masked
 chroot "$IMAGE" systemctl is-enabled console-getty.service | grep -q masked
 for dietpi_config in "$IMAGE/boot/dietpi.txt" "$IMAGE/boot/firmware/dietpi.txt"; do
   test -f "$dietpi_config" || continue
@@ -43,7 +46,15 @@ done
 chroot "$IMAGE" id svvdiag | grep -q 'systemd-journal'
 chroot "$IMAGE" passwd -S svvdiag | grep -q ' P '
 test ! -e "$IMAGE/etc/sudoers.d/svvdiag"
+test -s "$IMAGE/etc/bashrc.d/00-disag-diagnostics.sh"
+grep -q 'G_DIETPI_LOGIN=1' "$IMAGE/etc/bashrc.d/00-disag-diagnostics.sh"
+grep -q '^After=dietpi-firstboot.service$' "$IMAGE/etc/systemd/system/disag-dietpi-first-run.service"
+grep -q '^ExecStart=/boot/dietpi/dietpi-login$' "$IMAGE/etc/systemd/system/disag-dietpi-first-run.service"
 grep -q 'console=tty1' "$IMAGE/boot/firmware/cmdline.txt"
+if [[ ${DISAG_TARGET:-} == raspberry-pi-4 ]]; then
+  grep -q 'video=HDMI-A-1:1920x1080@60D' "$IMAGE/boot/firmware/cmdline.txt"
+  grep -q 'video=HDMI-A-2:1920x1080@60D' "$IMAGE/boot/firmware/cmdline.txt"
+fi
 grep -q 'systemd.show_status=false' "$IMAGE/boot/firmware/cmdline.txt"
 grep -q '^auto_initramfs=1$' "$IMAGE/boot/firmware/config.txt"
 grep -Eq '^[[:space:]]*dtoverlay=vc4-kms-v3d' "$IMAGE/boot/firmware/config.txt"

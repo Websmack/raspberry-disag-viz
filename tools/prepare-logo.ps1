@@ -1,10 +1,18 @@
 param(
-    [string]$InputPath = "$PSScriptRoot\..\images\SVV_Logo.png"
+    [Alias('LogoFile')]
+    [string]$InputPath = 'BootLogo.png'
 )
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 $root = (Resolve-Path "$PSScriptRoot\..").Path
+if ([string]::IsNullOrWhiteSpace($InputPath)) {
+    throw 'Der Logo-Dateiname darf nicht leer sein.'
+}
+if (-not [System.IO.Path]::IsPathRooted($InputPath) -and
+    [System.IO.Path]::GetFileName($InputPath) -eq $InputPath) {
+    $InputPath = Join-Path $root "images\$InputPath"
+}
 $source = [System.Drawing.Image]::FromFile((Resolve-Path $InputPath).Path)
 $canvas = [System.Drawing.Bitmap]::new(1920, 1080, [System.Drawing.Imaging.PixelFormat]::Format24bppRgb)
 $graphics = [System.Drawing.Graphics]::FromImage($canvas)

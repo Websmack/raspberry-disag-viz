@@ -12,5 +12,9 @@ config.write_text(original + '\n\n' + marker + '\n[all]\nauto_initramfs=1\ndisab
 cmdline = boot_root / 'cmdline.txt'
 prefixes = ('console=', 'video=', 'init=', 'systemd.run', 'loglevel=', 'vt.global_cursor_default=', 'systemd.show_status=', 'rd.systemd.show_status=')
 args = [arg for arg in cmdline.read_text().split() if not arg.startswith(prefixes) and arg not in ('quiet', 'splash', 'logo.nologo')]
-args += ['console=tty1', 'quiet', 'splash', 'logo.nologo', 'vt.global_cursor_default=0', 'loglevel=0', 'systemd.show_status=false', 'rd.systemd.show_status=false', 'video=HDMI-A-1:1920x1080@60D']
+args += ['console=tty1', 'quiet', 'splash', 'logo.nologo', 'vt.global_cursor_default=0', 'loglevel=0', 'systemd.show_status=false', 'rd.systemd.show_status=false']
+# The Pi 4 has two HDMI connectors. A forced fallback on HDMI0 alone leaves
+# HDMI1 dark before Xorg can select the display with a real EDID.
+outputs = ('HDMI-A-1', 'HDMI-A-2') if os.environ.get('DISAG_TARGET') == 'raspberry-pi-4' else ('HDMI-A-1',)
+args.extend(f'video={output}:1920x1080@60D' for output in outputs)
 cmdline.write_text(' '.join(args) + '\n')

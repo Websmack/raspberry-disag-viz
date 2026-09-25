@@ -36,6 +36,8 @@ mount -t sysfs sysfs "$WORK/root/sys"
 mkdir -p "$WORK/root/opt/DISAG-VIZ" "$WORK/root/opt/kiosk-setup"
 cp -a "$ROOT/DISAG-VIZ/." "$WORK/root/opt/DISAG-VIZ/"
 cp -a "$ROOT/kiosk/." "$WORK/root/opt/kiosk-setup/"
+mkdir -p "$WORK/root/opt/kiosk-setup/config"
+cp -a "$ROOT/config/disag.txt" "$ROOT/config/network.txt" "$WORK/root/opt/kiosk-setup/config/"
 chroot "$WORK/root" /bin/bash /opt/kiosk-setup/install.sh
 echo 'Configured image mounted at /var/tmp/disag-kiosk-build/root; finalization pending logo.'
 trap - EXIT

@@ -1,4 +1,4 @@
 # DISAG-Netzwerkserver; unter Windows auf der bootfs-Partition bearbeitbar.
 serverip=192.168.0.101
 serverport=7934
-vizname=SV-Völkersen-VIZ
+vizname=SV-Voelkersen-VIZ
